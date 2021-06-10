@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onepassword-connect
+spec:
+  selector:
+    matchLabels:
+      app: onepassword-connect
+  template:
+    metadata:
+      labels:
+        app: onepassword-connect
+        version: "1.2.0"
+    spec:
+      volumes:
+        - name: shared-data
+          emptyDir: {}
+        - name: credentials
+          secret:
+            secretName: op-credentials
+      initContainers:
+        - name: sqlite-permissions
+          image: alpine:3.12
+          command:
+            - "/bin/sh"
+            - "-c"
+          args:
+            - "mkdir -p /home/opuser/.op/data && chown -R 999 /home/opuser && chmod -R 700 /home/opuser && chmod -f -R 600 /home/opuser/.op/config || :"
+          volumeMounts:
+            - mountPath: /home/opuser/.op/data
+              name: shared-data
+      containers:
+        - name: connect-api
+          image: 1password/connect-api:latest
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "0.2"
+          ports:
+            - containerPort: 8080
+          env:
+            - name: OP_SESSION
+              value: /home/opuser/.config/1password-credentials.json
+          volumeMounts:
+            - mountPath: /home/opuser/.op/data
+              name: shared-data
+            - mountPath: /home/opuser/.config
+              name: credentials
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /heartbeat
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+        - name: connect-sync
+          image: 1password/connect-sync:latest
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "0.2"
+          ports:
+            - containerPort: 8081
+          env:
+            - name: OP_HTTP_PORT
+              value: "8081"
+            - name: OP_SESSION
+              value: /home/opuser/.config/1password-credentials.json
+          volumeMounts:
+            - mountPath: /home/opuser/.op/data
+              name: shared-data
+            - mountPath: /home/opuser/.config
+              name: credentials
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /heartbeat
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
