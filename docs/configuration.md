@@ -8,12 +8,13 @@ The Connect server consists of 2 containers, `1password/connect-api` and `1passw
 
 ## Environment variables
 
-Several environment variable configuration options are available.
-
+The following environment variable configuration options are available for both contains:
 - `OP_SESSION`: path to the 1password-credentials.json file
-- `OP_HTTP_PORT`: port used by the API when using HTTP
-- `OP_HTTPS_PORT`: port used by the API when TLS is configured (see below)
+- `OP_HTTP_PORT`: port used by the HTTP server
 - `OP_LOG_LEVEL`: set the logging level of the container
+
+All other configuration options are only relevant for the `password/connect-api` container:
+- `OP_HTTPS_PORT`: port used by the HTTP sever when TLS is configured (see below)
 - `OP_SYNC_TIMEOUT`: define how long to wait for initial sync to complete
 
 When using TLS with own certificate:

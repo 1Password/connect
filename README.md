@@ -36,12 +36,13 @@ Deployment Examples:
 
 ### Server Configuration
 
-Several environment variable configuration options are available.
-
+The following environment variable configuration options are available for both contains:
 - `OP_SESSION`: path to the 1password-credentials.json file
-- `OP_HTTP_PORT`: port used by the API when using HTTP
-- `OP_HTTPS_PORT`: port used by the API when TLS is configured (see below)
+- `OP_HTTP_PORT`: port used by the HTTP server
 - `OP_LOG_LEVEL`: set the logging level of the container
+
+All other configuration options are only relevant for the `password/connect-api` container:
+- `OP_HTTPS_PORT`: port used by the HTTP sever when TLS is configured (see below)
 - `OP_SYNC_TIMEOUT`: define how long to wait for initial sync to complete
 
 [More information on configuration options](docs/configuration.md)
@@ -52,13 +53,13 @@ It is possible to enable TLS for the connection between your application and Con
 This can be done by either by providing your own certificate or by letting Connect request a certificate using Let's Encrypt.
 
 **Provide own certificate**  
-Connect can use a PEM-encoded private key and certificate by setting the following two environment variables:
+Connect can use a PEM-encoded private key and certificate by setting the following two environment variables for the `connect-api` container:
 - `OP_TLS_KEY_FILE`: path to the private key file.
 - `OP_TLS_CERT_FILE`: path to the certificate file. This should be the full certificate chain.
 
 **Use Let's Encrypt**  
 Connect can also request a certificate from the Let's Encrypt CA. 
-For this, two environment variables have to be set:
+For this, two environment variables have to be set for the `connect-api` container:
 - `OP_TLS_USE_LETSENCRYPT`: should be set to any value.
 - `OP_TLS_DOMAIN`: the (sub-)domain for which to request a certificate. The DNS-records for this domain must point to the Connect server.
 
