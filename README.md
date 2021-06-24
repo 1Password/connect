@@ -36,16 +36,34 @@ Deployment Examples:
 
 ### Server Configuration
 
-Several environment variable configuration options are available.
-
+The following environment variable configuration options are available for both contains:
 - `OP_SESSION`: path to the 1password-credentials.json file
-- `OP_HTTP_PORT`: port used by the HTTP Server
+- `OP_HTTP_PORT`: port used by the HTTP server
 - `OP_LOG_LEVEL`: set the logging level of the container
+
+All other configuration options are only relevant for the `password/connect-api` container:
+- `OP_HTTPS_PORT`: port used by the HTTP sever when TLS is configured (see below)
 - `OP_SYNC_TIMEOUT`: define how long to wait for initial sync to complete
 
-TODO: Add TLS Configuration and debug logging details
-
 [More information on configuration options](docs/configuration.md)
+
+#### TLS
+By default, 1Password Connect is configured for use within a trusted network. 
+It is possible to enable TLS for the connection between your application and Connect. 
+This can be done by either by providing your own certificate or by letting Connect request a certificate using Let's Encrypt.
+
+**Provide own certificate**  
+Connect can use a PEM-encoded private key and certificate by setting the following two environment variables for the `connect-api` container:
+- `OP_TLS_KEY_FILE`: path to the private key file.
+- `OP_TLS_CERT_FILE`: path to the certificate file. This should be the full certificate chain.
+
+**Use Let's Encrypt**  
+Connect can also request a certificate from the Let's Encrypt CA. 
+For this, two environment variables have to be set for the `connect-api` container:
+- `OP_TLS_USE_LETSENCRYPT`: should be set to any value.
+- `OP_TLS_DOMAIN`: the (sub-)domain for which to request a certificate. The DNS-records for this domain must point to the Connect server.
+
+As long as Connect is running, its HTTPS listener must be reachable on a public IP at port 443 (either by setting `OP_HTTPS_PORT=443` or by forwarding traffic at port `443` to Connect's `OP_HTTPS_PORT`)  for the server to be able to refresh its Let's Encrypt certificate.
 
 ## Related 1Password Support Links
 
