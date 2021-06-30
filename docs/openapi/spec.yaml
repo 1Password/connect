@@ -40,7 +40,7 @@ components:
       properties:
         id:
           type: string
-          format: uuid
+          pattern: '^[\da-z]{26}$'
         name:
           type: string
         description:
@@ -99,7 +99,7 @@ components:
       properties:
         id:
           type: string
-          format: uuid
+          pattern: '^[\da-z]{26}$'
         title:
           type: string
         vault:
@@ -109,7 +109,7 @@ components:
           properties:
             id:
               type: string
-              format: uuid
+              pattern: '^[\da-z]{26}$'
         category:
           type: string
           enum:
@@ -174,7 +174,6 @@ components:
           readOnly: true
         lastEditedBy:
           type: string
-          format: uuid
           readOnly: true
     FullItem:
       allOf:
@@ -188,7 +187,6 @@ components:
                 properties:
                   id:
                     type: string
-                    format: uuid
                   label:
                     type: string
             fields:
@@ -203,7 +201,6 @@ components:
                     properties:
                       id:
                         type: string
-                        format: uuid
                   type:
                     type: string
                     default: "STRING"
@@ -271,10 +268,8 @@ components:
               format: uuid
             account:
               type: string
-              format: uuid
             jti:
               type: string
-              format: uuid
             userAgent:
               type: string
             requestIp:
@@ -292,13 +287,13 @@ components:
               properties:
                 id:
                   type: string
-                  format: uuid
+                  pattern: '^[\da-z]{26}$'
             item:
               type: object
               properties:
                 id:
                   type: string
-                  format: uuid
+                  pattern: '^[\da-z]{26}$'
             itemVersion:
               type: integer
     Patch:
@@ -312,12 +307,24 @@ components:
           path:
             type: string
             description: An RFC6901 JSON Pointer pointing to the Item document, an Item Attribute, and Item Field by Field ID, or an Item Field Attribute
-            example: "/fields/vy09gd8EXAMPLE/label"
+            example: "/fields/06gnn2b95example10q91512p5/label"
           value:
-            type: {}
+            type: object
         required:
           - op
           - path
+    ServiceDependency:
+      description: The state of a registered server dependency.
+      type: object
+      properties:
+        service:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+          description: Human-readable message for explaining the current state.
+
 
 paths:
   /activity:
@@ -413,7 +420,7 @@ paths:
           name: vaultUuid
           schema:
             type: string
-            format: uuid
+            pattern: '^[\da-z]{26}$'
           required: true
           description: The UUID of the Vault to fetch Items from
       responses:
@@ -463,7 +470,7 @@ paths:
           name: vaultUuid
           schema:
             type: string
-            format: uuid
+            pattern: '^[\da-z]{26}$'
           required: true
           description: The UUID of the Vault to fetch Items from
         - in: query
@@ -511,7 +518,7 @@ paths:
           name: vaultUuid
           schema:
             type: string
-            format: uuid
+            pattern: '^[\da-z]{26}$'
           required: true
           description: The UUID of the Vault to create an Item in
       requestBody:
@@ -578,14 +585,14 @@ paths:
           name: vaultUuid
           schema:
             type: string
-            format: uuid
+            pattern: '^[\da-z]{26}$'
           required: true
           description: The UUID of the Vault to fetch Item from
         - in: path
           name: itemUuid
           schema:
             type: string
-            format: uuid
+            pattern: '^[\da-z]{26}$'
           required: true
           description: The UUID of the Item to fetch
       responses:
@@ -642,14 +649,14 @@ paths:
           name: vaultUuid
           schema:
             type: string
-            format: uuid
+            pattern: '^[\da-z]{26}$'
           required: true
           description: The UUID of the Item's Vault
         - in: path
           name: itemUuid
           schema:
             type: string
-            format: uuid
+            pattern: '^[\da-z]{26}$'
           required: true
           description: The UUID of the Item to update
       requestBody:
@@ -720,14 +727,14 @@ paths:
           name: vaultUuid
           schema:
             type: string
-            format: uuid
+            pattern: '^[\da-z]{26}$'
           required: true
           description: The UUID of the Vault the item is in
         - in: path
           name: itemUuid
           schema:
             type: string
-            format: uuid
+            pattern: '^[\da-z]{26}$'
           required: true
           description: The UUID of the Item to update
       responses:
@@ -781,14 +788,14 @@ paths:
           name: vaultUuid
           schema:
             type: string
-            format: uuid
+            pattern: '^[\da-z]{26}$'
           required: true
           description: The UUID of the Vault the item is in
         - in: path
           name: itemUuid
           schema:
             type: string
-            format: uuid
+            pattern: '^[\da-z]{26}$'
           required: true
           description: The UUID of the Item to update
       requestBody:
@@ -825,20 +832,20 @@ paths:
                 value:
                   -
                     op: "replace"
-                    path: "/fields/h4we9a4fEXAMPLE00"
+                    path: "/fields/r9qxq7xnhfhukoxsc8ymqr0y11"
                     value: {"label": "Replacement Title", "type": "string", "value": "new value"}
                   -
                     op: "remove"
-                    path: "/fields/inm42xcf0EXAMPLE02"
+                    path: "/fields/h2nl155dshi043yse7wa3u1hs7"
                 summary: Modify or remove an ItemField.
               PatchItemFieldAttr:
                 value:
                   -
                     op: "add"
-                    path: "/fields/vy09gd8EXAMPLE/label"
+                    path: "/fields/s2ju540zlna8bdj4uro7sj64rk/label"
                     value: "New field name"
                   - op: "remove"
-                    path: "/fields/vy09gd8EXAMPLE/value"
+                    path: "/fields/s2ju540zlna8bdj4uro7sj64rk/value"
                 summary: Modify a specific ItemField attribute.
 
       responses:
@@ -883,3 +890,84 @@ paths:
                   value:
                     status: 404
                     message: vault {vaultUuid} not found
+  /heartbeat:
+    get:
+      operationId: GetHeartbeat
+      tags:
+        - Health
+      summary: Ping the server for liveness
+      servers:
+        - url: http://localhost:8080
+      responses:
+        "200":
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: .
+  /health:
+    get:
+      operationId: GetServerHealth
+      tags:
+        - Health
+      summary: Get state of the server and its dependencies.
+      servers:
+        - url: http://localhost:8080
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: ["name", "version"]
+                properties:
+                  name:
+                    type: string
+                  version:
+                    type: string
+                    description: The Connect server's version
+                  dependencies:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ServiceDependency"
+              examples:
+                WaitingForAPIRequest:
+                  value:
+                    name: 1Password Connect API
+                    version: 1.2.1
+                    dependencies:
+                      - service: sync
+                        status: "TOKEN_NEEDED"
+                      - service: sqlite
+                        status: "ACTIVE"
+                        message: "Connected to./1password.sqlite"
+                  summary: API server waiting for first authenticated request
+
+  /metrics:
+    get:
+      operationId: GetPrometheusMetrics
+      tags:
+        - Metrics
+      description: See Prometheus documentation for a complete data model.
+      summary: Query server for exposed Prometheus metrics
+      servers:
+        - url: http://localhost:8080
+      responses:
+        "200":
+          description: Successfully returned Prometheus metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  # HELP go_gc_duration_seconds A summary of the pause duration of garbage collection cycles.
+                  # TYPE go_gc_duration_seconds summary
+                  go_gc_duration_seconds{quantile="0"} 2.9153e-05
+                  go_gc_duration_seconds{quantile="0.25"} 6.2832e-05
+                  go_gc_duration_seconds{quantile="0.5"} 9.7187e-05
+                  go_gc_duration_seconds{quantile="0.75"} 0.000112967
+                  go_gc_duration_seconds{quantile="1"} 0.000215819
+                  go_gc_duration_seconds_sum 0.001376862
+                  go_gc_duration_seconds_count 14
