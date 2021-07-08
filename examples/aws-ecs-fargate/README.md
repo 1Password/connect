@@ -1,8 +1,10 @@
 # AWS ECS with Fargate
 
-The Cloud Formation document in this folder will create the following resources as well as the required rules, groups, and policies to make them work.
+The CloudFormation document in this folder will create the following resources as well as the required rules, groups, and policies to make them work.
 
 The result is a publicly accessible hostname that will route requests to a 1Password Connect instance running in AWS Fargate.
+
+If you are looking to deploy into existing an AWS VPC or use an existing ECS cluster please consider this CloudFormation as a starting point and you can modify it using a text editor or using Amazon's CloudFormation Designer tool.
 
 ## Networking Resources
 

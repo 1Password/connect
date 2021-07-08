@@ -23,7 +23,6 @@ Resources:
       EnableDnsSupport: true
       EnableDnsHostnames: true
       CidrBlock: !FindInMap ['SubnetConfig', 'VPC', 'CIDR']
-  # Two public subnets, where containers can have public IP addresses
   PublicSubnetOne:
     Type: AWS::EC2::Subnet
     Properties:
