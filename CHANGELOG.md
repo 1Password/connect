@@ -1,3 +1,24 @@
+[//]: # "START/v1.3.0"
+
+# v1.3.0
+
+This release introduces support for accessing documents and files attached to items.
+
+## Features
+
+- [NEW] Add support for getting files through the API.
+
+- [IMPROVED] Item modification requests are now rejected by the Connect API if the authenticated account is in the frozen billing state. {1175}
+- [IMPROVED] Items containing one or more file fields can now be updated through Connect. {1386}
+- [IMPROVED] API spec now defines valid vault and item IDs. {1399}
+- [IMPROVED] Connect API now reports its version number in the `1Password-Connect-Version` header. {1443}
+
+
+## Fixed
+
+- [FIXED] Resolved an issue that prevented servers from authenticating with accounts after an admin updated the sign-in url. {1446}
+
+
 [//]: # "START/v1.2.0"
 
 # v1.2.0
