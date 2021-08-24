@@ -31,8 +31,8 @@ Deployment Examples:
 
 - [Helm](https://github.com/1Password/connect-helm-charts/tree/main/charts/connect#deploying-1password-connect)
 - [Docker Compose](./examples/docker/compose/README.md)
-- [Kubernetes Manifest](./examples/docker/compose/README.md)
-- [AWS Elastic Container Service](./examples/docker/compose/README.md)
+- [Kubernetes Manifest](./examples/kubernetes/README.md)
+- [AWS Elastic Container Service](./examples/aws-ecs-fargate/README.md)
 
 ### Server Configuration
 
