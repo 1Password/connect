@@ -22,7 +22,7 @@ If you are looking to deploy into existing an AWS VPC or use an existing ECS clu
 
 ## Getting Started
 
-When importing this CloudFormation template you will be prompted to provide a base64url encoded version of the `1password-credentials.json`. This encoded value can be generated using this standard unix shell command
+When [importing this CloudFormation template](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-using-console-create-stack-template.html) you will be prompted to provide a base64url encoded version of the `1password-credentials.json`. This encoded value can be generated using this standard unix shell command
 
 ```
 cat 1password-credentials.json | base64 | tr '/+' '_-' | tr -d '=' | tr -d '\n'
