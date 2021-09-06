@@ -266,6 +266,12 @@ Resources:
           Environment:
             - Name: 'OP_SESSION'
               Value: !Ref "Base64Credentials"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref "CloudWatchLogsGroup"
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: connect-api
         - Name: connect-sync
           Image: 1password/connect-sync:latest
           MountPoints:
@@ -276,6 +282,20 @@ Resources:
               Value: '8081'
             - Name: 'OP_SESSION'
               Value: !Ref "Base64Credentials"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref "CloudWatchLogsGroup"
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: connect-sync
+
+
+  CloudWatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: onepassword-connect
+      RetentionInDays: 30
+
 
 Outputs:
   ExternalUrl:
