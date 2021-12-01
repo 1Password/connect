@@ -1,3 +1,15 @@
+[//]: # "START/v1.4.0"
+
+# v1.4.0
+This release introduces enhancements for OTP fields, generated passwords and item usage histories.
+
+This update includes non-breaking changes to the  [OpenAPI spec](docs/openapi/spec.yaml).
+
+- [NEW] Specific characters can now be excluded from generated passwords by setting `excludeCharacters` in the recipe. {1631}
+- [IMPROVED] Added the generated TOTP code to the body of OTP fields in Items. {1557}
+- [IMPROVED] Connect now records more detailed item usage histories. {14198}
+
+
 [//]: # "START/v1.3.0"
 
 # v1.3.0
@@ -6,7 +18,7 @@ This release introduces support for accessing documents and files attached to it
 
 ## Features
 
-- [NEW] Add support for getting files through the API.
+- [NEW] Add support for getting files through the API. Details can be found in the [OpenAPI spec](docs/openapi/spec.yaml).
 
 - [IMPROVED] Item modification requests are now rejected by the Connect API if the authenticated account is in the frozen billing state. {1175}
 - [IMPROVED] Items containing one or more file fields can now be updated through Connect. {1386}
