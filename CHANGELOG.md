@@ -1,3 +1,17 @@
+[//]: # "START/v1.5.0"
+
+# v1.5.0
+This release introduces Docker images for the `arm64` and `arm/v7` platforms. 
+
+Furthermore, the bus between the api and sync container can now be manually configured for environments that cannot run containers with the `NET_BROADCAST` capability.
+
+- [NEW] Bus auto-discovery can now be disabled by explicitly defining peers with the `$OP_BUS_PEERS` environment variable. {1778}
+- [NEW] Connect API and Connect Sync Docker images for arm64/v8 and arm/v7 architectures are now available. {1771}
+
+- [FIXED] The label field is now always correctly set (instead of being empty) for fields that have a USERNAME or PASSWORD purpose. {1657}
+
+
+
 [//]: # "START/v1.4.0"
 
 # v1.4.0
