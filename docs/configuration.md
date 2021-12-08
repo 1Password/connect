@@ -34,7 +34,7 @@ When using TLS with Let's Encrypt:
 - `OP_TLS_USE_LETSENCRYPT`: should be set to any value.
 - `OP_TLS_DOMAIN`: the (sub-)domain for which to request a certificate. The DNS-records for this domain must point to the Connect server.
 
-## Manual bus configuration
+## Manual bus configuration (v1.5.0 and above)
 By default, the 2 containers automatically discover and connect to the shared bus. This discovery mechanism requires the `NET_BROADCAST` capability, which cannot always be granted to containers.
 
 It is also possible to manually configure the shared bus:
