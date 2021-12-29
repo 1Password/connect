@@ -6,14 +6,16 @@ The 1Password Connect server provides a REST API that can be used to securely ac
 
 ### Create Server and Access Token
 
-You can use the 1Password command-line tool to set up a 1Password Connect server and issue tokens for it.
-Set up a 1Password Connect server:
+You can use the [1Password command-line tool](https://1password.com/downloads/command-line/) to set up a 1Password Connect server and issue tokens for it.
+
+First, set up a 1Password Connect server:
 
 ```sh
 op create connect server <name> --vaults <vault>[,<vault>]
 ```
 
 You'll get a `1password-credentials.json` file that you'll use to deploy the Connect server.
+
 Issue a token:
 
 ```sh
@@ -30,9 +32,9 @@ Deploying 1Password Connect requires 2 containers to be running in your infrastr
 Deployment Examples:
 
 - [Helm](https://github.com/1Password/connect-helm-charts/tree/main/charts/connect#deploying-1password-connect)
-- [Docker Compose](./examples/docker/compose/README.md)
-- [Kubernetes Manifest](./examples/kubernetes/README.md)
-- [AWS Elastic Container Service](./examples/aws-ecs-fargate/README.md)
+- [Docker Compose](./examples/docker/compose)
+- [Kubernetes Manifest](./examples/kubernetes)
+- [AWS Elastic Container Service](./examples/aws-ecs-fargate)
 
 ### Server Configuration
 
