@@ -6,12 +6,12 @@ The 1Password Connect server provides a REST API that can be used to securely ac
 
 ### Create Server and Access Token
 
-You can use the [1Password command-line tool](https://1password.com/downloads/command-line/) to set up a 1Password Connect server and issue tokens for it.
+You can use the [1Password CLI](https://1password.com/downloads/command-line/) to set up a 1Password Connect server and issue tokens for it.
 
 First, set up a 1Password Connect server:
 
 ```sh
-op create connect server <name> --vaults <vault>[,<vault>]
+op connect server create <name> --vaults <vault>[,<vault>]
 ```
 
 You'll get a `1password-credentials.json` file that you'll use to deploy the Connect server.
@@ -19,7 +19,7 @@ You'll get a `1password-credentials.json` file that you'll use to deploy the Con
 Issue a token:
 
 ```sh
-op create connect token <server_name> <token_name> --vault <vault_uuid>[,(r|w|rw)] [--vault <vault_uuid>[,(r|w|rw)]]
+op connect token create <token_name> --server <server_name> --vaults <vault_uuid>[,(r|w|rw)]
 ```
 
 ### Deploy Connect Server
