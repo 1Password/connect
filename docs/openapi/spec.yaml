@@ -3,7 +3,7 @@ info:
   title: 1Password Connect
   description: >-
     REST API interface for 1Password Connect.
-  version: "1.5.0"
+  version: "1.5.1"
   contact:
     name: 1Password Integrations
     email: support@1password.com
@@ -253,7 +253,7 @@ components:
             - "EMAIL"
             - "CONCEALED"
             - "URL"
-            - "OTP"
+            - "TOTP"
             - "DATE"
             - "MONTH_YEAR"
             - "MENU"
