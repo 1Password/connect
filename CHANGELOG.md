@@ -1,3 +1,14 @@
+[//]: # "START/v1.5.1"
+
+# v1.5.1
+This release addresses a few problems related to Connect's synchronization mechanism.
+
+- [IMPROVED] Connect stays better in sync with 1Password when it experiences connection problems. {2150}
+
+- [FIXED] Fixed synchronization of templates that could prevent Connect from starting after changing its credentials. {2151}
+- [FIXED] Templates should now correctly synchronize to Connect after emptying Connect's database. {2151}
+- [FIXED] Connect should no longer return a "failed to initialize database" error when upgrading from Connect v1.3.x. {2005}
+
 [//]: # "START/v1.5.0"
 
 # v1.5.0
