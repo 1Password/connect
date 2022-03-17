@@ -54,7 +54,7 @@ By default, 1Password Connect is configured for use within a trusted network.
 It is possible to enable TLS for the connection between your application and Connect. 
 This can be done by either by providing your own certificate or by letting Connect request a certificate using Let's Encrypt.
 
-Connect will listen on the port defined by `HTTPS_PORT` (default `8443`) when TLS is enabled.
+Connect will listen on the port defined by `OP_HTTPS_PORT` (default `8443`) when TLS is enabled.
 
 **Provide own certificate**  
 Connect can use a PEM-encoded private key and certificate by setting the following two environment variables for the `connect-api` container:
