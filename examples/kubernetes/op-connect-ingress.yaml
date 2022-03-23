@@ -1,4 +1,4 @@
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   namespace: connect
@@ -9,12 +9,15 @@ metadata:
 spec:
   rules:
   - host: connect.example.com
-    http:
+  - http:
       paths:
-      - backend:
-          serviceName: onepassword-connect
-          servicePort: 8080
-        path: /
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: onepassword-connect
+            port:
+              number: 8080
   tls:
   - hosts:
     - connect.example.com
