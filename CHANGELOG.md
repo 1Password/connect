@@ -1,3 +1,13 @@
+[//]: # "START/v1.5.2"
+
+# v1.5.2
+This release addressed a few minor bugs and a memory leak.
+
+- [IMPROVED] Connect now validates `monthYear` and `date` field types. {2075}
+
+- [FIXED] Addressed a problem that could let the memory consumption of the sync container slowly increase for every incoming request under certain circumstances. {2017}
+- [FIXED] Having a single quote as a filter value no longer throws a stack trace and now returns a 400. {1442}
+
 [//]: # "START/v1.5.1"
 
 # v1.5.1
