@@ -1,3 +1,23 @@
+[//]: # "START/v1.5.4"
+
+# v1.5.4
+This release updates the API spec of Connect to mention some supported fields and addresses two bugs.
+
+- [IMPROVED] The API spec now mentions the "label" field for autofill URL's. {2446}
+- [IMPROVED] The API spec now mentions support for the item categories "MEDICAL_RECORD" and "SSH_KEY". {2468}
+
+- [FIXED] Connect accepts JSON inputs with camelCase keys as used in the SDK's again. {2317}
+- [FIXED] Connect no longer return an error mentioning the files directory in some cases when a file is uploaded to a vault that Connect syncs. {2498,2539}
+
+- [SECURITY] The Docker images are now using an updated version of the Debian base images. {2516}
+
+[//]: # "START/v1.5.3"
+
+# v1.5.3
+This release contains improvements in validation during the SRP process.
+
+- [SECURITY] Improved validation of server parameters in SRP process. Credits to Cure53. {2442}
+
 [//]: # "START/v1.5.2"
 
 # v1.5.2
