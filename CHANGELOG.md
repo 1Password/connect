@@ -1,3 +1,12 @@
+[//]: # "START/v1.5.5"
+
+# v1.5.5
+This version addresses a few bugs and a security improvement.
+
+- [FIXED] Connect now properly returns the `content_path` attribute of the File object. {2598}
+
+- [SECURITY] Updated Debian packages for the Docker release images. {2516}
+
 [//]: # "START/v1.5.4"
 
 # v1.5.4
