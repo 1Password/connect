@@ -1,3 +1,11 @@
+[//]: # "START/v1.5.6"
+
+# v1.5.6
+This version addresses bugs related to file objects
+
+- [FIXED] The file objects now have the correct ID and name. {2625, 2616}
+- [FIXED] Categories route will no longer return status 500 when no error is present. {2170}
+
 [//]: # "START/v1.5.5"
 
 # v1.5.5
