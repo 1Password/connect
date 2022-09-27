@@ -38,7 +38,7 @@ Deployment Examples:
 
 ### Server Configuration
 
-The following environment variable configuration options are available for both contains:
+The following environment variable configuration options are available for both containers:
 - `OP_SESSION`: path to the 1password-credentials.json file. Defaults to `~/.op/1password-credentials.json`.
 - `OP_HTTP_PORT`: port used by the HTTP server. Defaults to `8080`
 - `OP_LOG_LEVEL`: set the logging level of the container. Defaults to `info`.
@@ -52,7 +52,7 @@ All other configuration options are only relevant for the `password/connect-api`
 #### TLS
 By default, 1Password Connect is configured for use within a trusted network. 
 It is possible to enable TLS for the connection between your application and Connect. 
-This can be done by either by providing your own certificate or by letting Connect request a certificate using Let's Encrypt.
+This can be done either by providing your own certificate or by letting Connect request a certificate using Let's Encrypt.
 
 Connect will listen on the port defined by `OP_HTTPS_PORT` (default `8443`) when TLS is enabled.
 
