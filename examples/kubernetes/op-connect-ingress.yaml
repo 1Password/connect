@@ -5,6 +5,10 @@ metadata:
   annotations:
     # Use cert-manager ClusterIssuer
     cert-manager.io/cluster-issuer: letsencrypt
+    # Allow cert-manager to edit this Ingress resource in-place
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    # Issue temprorary self-signed cert
+    cert-manager.io/issue-temporary-certificate: "true"
 spec: 
   rules:
     - host: connect.example.com
