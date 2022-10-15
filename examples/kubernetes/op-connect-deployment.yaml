@@ -65,11 +65,7 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "0.2"
-          ports:
-            - containerPort: 8081
           env:
-            - name: OP_HTTP_PORT
-              value: "8081"
             - name: OP_SESSION
               value: /home/opuser/.config/1password-credentials.json
           volumeMounts:

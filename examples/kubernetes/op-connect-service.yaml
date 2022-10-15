@@ -6,7 +6,6 @@ spec:
   selector:
     app: onepassword-connect
   ports:
-    - port: 8080
-      name: connect-api
-    - port: 8081
-      name: connect-sync
+    - name: connect-api
+      port: 8080
+ 
