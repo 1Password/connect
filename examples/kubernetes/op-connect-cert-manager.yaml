@@ -17,17 +17,3 @@ spec:
     - http01:
         ingress:
           class: nginx
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  namespace: connect
-  name: connect-cert
-spec:
-  secretName: connect-cert
-  issuerRef:
-    name: letsencrypt
-    kind: ClusterIssuer
-  commonName: connect.example.com
-  dnsNames:
-  - connect.example.com
