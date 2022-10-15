@@ -17,7 +17,7 @@ spec:
               name: onepassword-connect
               port:
                 name: connect-api
-tls:
-  - hosts:
-    - connect.example.com
-    secretName: connect-cert
+  tls:
+    - hosts:
+      - connect.example.com
+      secretName: connect-cert
