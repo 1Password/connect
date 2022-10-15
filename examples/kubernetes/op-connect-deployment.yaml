@@ -10,7 +10,6 @@ spec:
     metadata:
       labels:
         app: onepassword-connect
-        version: "1.2.0"
     spec:
       volumes:
         - name: shared-data
@@ -31,7 +30,7 @@ spec:
               name: shared-data
       containers:
         - name: connect-api
-          image: 1password/connect-api:latest
+          image: 1password/connect-api:1.5.7
           resources:
             limits:
               memory: "128Mi"
@@ -61,7 +60,7 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
         - name: connect-sync
-          image: 1password/connect-sync:latest
+          image: 1password/connect-sync:1.5.7
           resources:
             limits:
               memory: "128Mi"
