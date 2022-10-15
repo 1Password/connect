@@ -68,6 +68,8 @@ spec:
           env:
             - name: OP_SESSION
               value: /home/opuser/.config/1password-credentials.json
+            - name: OP_HTTP_PORT
+              value: "8081"
           volumeMounts:
             - mountPath: /home/opuser/.op/data
               name: shared-data
