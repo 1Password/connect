@@ -8,4 +8,5 @@ spec:
   ports:
     - name: connect-api
       port: 8080
+      targetPort: connect-api
  

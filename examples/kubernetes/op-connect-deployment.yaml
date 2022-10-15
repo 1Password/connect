@@ -37,7 +37,8 @@ spec:
               memory: "128Mi"
               cpu: "0.2"
           ports:
-            - containerPort: 8080
+            - name: connect-api
+              containerPort: 8080
           env:
             - name: OP_SESSION
               value: /home/opuser/.config/1password-credentials.json
