@@ -18,7 +18,7 @@ spec:
           pathType: ImplementationSpecific
           backend:
             service:
-              name: onepassword-connect
+              name: op-connect
               port:
                 name: connect-api
   tls:

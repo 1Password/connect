@@ -1,15 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: onepassword-connect
+  name: op-connect
 spec:
   selector:
     matchLabels:
-      app: onepassword-connect
+      app: op-connect
   template:
     metadata:
       labels:
-        app: onepassword-connect
+        app: op-connect
     spec:
       volumes:
         - name: shared-data
