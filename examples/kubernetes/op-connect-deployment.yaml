@@ -50,13 +50,13 @@ spec:
           livenessProbe:
             httpGet:
               path: /heartbeat
-              port: 8080
+              port: connect-api
             initialDelaySeconds: 3
             periodSeconds: 3
           readinessProbe:
             httpGet:
               path: /health
-              port: 8080
+              port: connect-api
             initialDelaySeconds: 5
             periodSeconds: 5
         - name: connect-sync
@@ -65,6 +65,9 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "0.2"
+          ports:
+            - name: connect-sync
+              containerPort: 8081
           env:
             - name: OP_SESSION
               value: /home/opuser/.config/1password-credentials.json
@@ -79,12 +82,12 @@ spec:
           livenessProbe:
             httpGet:
               path: /heartbeat
-              port: 8080
+              port: connect-sync
             initialDelaySeconds: 3
             periodSeconds: 3
           readinessProbe:
             httpGet:
               path: /health
-              port: 8080
+              port: connect-sync
             initialDelaySeconds: 5
             periodSeconds: 5
