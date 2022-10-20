@@ -15,7 +15,11 @@ Included in this folder are:
 ## Prerequisites
 
 - 1Password Connect server credentials file (see [Quick Start](/README.md#quick-start) in the root of this repository)
-- Kubernetes cluster with available [ingress controller](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/)
+- Kubernetes cluster with available [ingress controller](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/), e.g.:
+  - [Ingress NGINX Controller](https://kubernetes.github.io/ingress-nginx/deploy/)
+  - [GKE Ingress](https://cloud.google.com/kubernetes-engine/docs/concepts/ingress)
+  - [AWS Load Balancer Controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.4/deploy/installation/)
+  - [Azure Application Gateway Ingress Controller](https://learn.microsoft.com/en-us/azure/application-gateway/tutorial-ingress-controller-add-on-new)
 - [cert-manager](https://cert-manager.io) installed on your cluster (see [Installation - cert-manager Documentation](https://cert-manager.io/docs/installation/))
 - A DNS provider in which you can create public records.
 
