@@ -11,7 +11,8 @@ metadata:
     cert-manager.io/issue-temporary-certificate: "true"
 spec:
   # You may need to specify the IngressClass if your cluster does not have a
-  # default IngressClass, e.g. for NGINX Ingress Controller:
+  # default IngressClass, e.g. for Ingress NGINX Controller, uncomment the
+  # below line:
   # ingressClassName: nginx
   rules:
     - host: connect.example.com
