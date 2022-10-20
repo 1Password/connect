@@ -10,12 +10,15 @@ metadata:
     # Issue temporary self-signed cert
     cert-manager.io/issue-temporary-certificate: "true"
 spec:
+  # You may need to specify the IngressClass if your cluster does not have a
+  # default IngressClass, e.g. for NGINX Ingress Controller:
+  # ingressClassName: nginx
   rules:
     - host: connect.example.com
       http:
         paths:
-        - path: /*
-          pathType: ImplementationSpecific
+        - path: /
+          pathType: Prefix
           backend:
             service:
               name: op-connect
