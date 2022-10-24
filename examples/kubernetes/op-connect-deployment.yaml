@@ -1,16 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: onepassword-connect
+  name: op-connect
 spec:
   selector:
     matchLabels:
-      app: onepassword-connect
+      app: op-connect
   template:
     metadata:
       labels:
-        app: onepassword-connect
-        version: "1.2.0"
+        app: op-connect
     spec:
       volumes:
         - name: shared-data
@@ -31,13 +30,14 @@ spec:
               name: shared-data
       containers:
         - name: connect-api
-          image: 1password/connect-api:latest
+          image: 1password/connect-api:1.5.7
           resources:
             limits:
               memory: "128Mi"
               cpu: "0.2"
           ports:
-            - containerPort: 8080
+            - name: connect-api
+              containerPort: 8080
           env:
             - name: OP_SESSION
               value: /home/opuser/.config/1password-credentials.json
@@ -50,28 +50,29 @@ spec:
           livenessProbe:
             httpGet:
               path: /heartbeat
-              port: 8080
+              port: connect-api
             initialDelaySeconds: 3
             periodSeconds: 3
           readinessProbe:
             httpGet:
               path: /health
-              port: 8080
+              port: connect-api
             initialDelaySeconds: 5
             periodSeconds: 5
         - name: connect-sync
-          image: 1password/connect-sync:latest
+          image: 1password/connect-sync:1.5.7
           resources:
             limits:
               memory: "128Mi"
               cpu: "0.2"
           ports:
-            - containerPort: 8081
+            - name: connect-sync
+              containerPort: 8081
           env:
-            - name: OP_HTTP_PORT
-              value: "8081"
             - name: OP_SESSION
               value: /home/opuser/.config/1password-credentials.json
+            - name: OP_HTTP_PORT
+              value: "8081"
           volumeMounts:
             - mountPath: /home/opuser/.op/data
               name: shared-data
@@ -81,12 +82,12 @@ spec:
           livenessProbe:
             httpGet:
               path: /heartbeat
-              port: 8080
+              port: connect-sync
             initialDelaySeconds: 3
             periodSeconds: 3
           readinessProbe:
             httpGet:
               path: /health
-              port: 8080
+              port: connect-sync
             initialDelaySeconds: 5
             periodSeconds: 5

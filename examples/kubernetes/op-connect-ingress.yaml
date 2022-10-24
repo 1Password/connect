@@ -1,21 +1,31 @@
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  namespace: connect
-  name: ingress-resource
+  name: connect-ingress
   annotations:
-    kubernetes.io/ingress.class: "nginx"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Use cert-manager ClusterIssuer
+    cert-manager.io/cluster-issuer: letsencrypt
+    # Allow cert-manager to edit this Ingress resource in-place
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    # Issue temporary self-signed cert
+    cert-manager.io/issue-temporary-certificate: "true"
 spec:
+  # You may need to specify the IngressClass if your cluster does not have a
+  # default IngressClass, e.g. for Ingress NGINX Controller, uncomment the
+  # below line:
+  # ingressClassName: nginx
   rules:
-  - host: connect.example.com
-    http:
-      paths:
-      - backend:
-          serviceName: onepassword-connect
-          servicePort: 8080
-        path: /
+    - host: connect.example.com
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: op-connect
+              port:
+                name: connect-api
   tls:
-  - hosts:
-    - connect.example.com
-    secretName: connect-cert
+    - hosts:
+      - connect.example.com
+      secretName: connect-cert
