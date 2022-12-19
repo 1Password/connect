@@ -1,3 +1,19 @@
+[//]: # "START/v1.5.8"
+
+# v1.5.8
+This release contains two security improvements.
+- [SECURITY] Addressed an issue that allows an attacker with network access to the Connect server to allocate high amounts of memory on the Connect server if it is configured to serve connections over TLS. We inherited this issue from the Go standard library, where the issue has been assigned vulnerability identifier CVE-2022-41717. {3274}
+- [SECURITY] Update Debian packages for the Docker release images. {3195}
+
+[//]: # "START/v1.5.7"
+
+# v1.5.7
+Security updates, and a fix to allow Connect to (re)start if the 1Password server is unavailable.
+- [FIXED] The API container will now continue to serve requests if it is restarted when 1Password server in unreachable. {2560}
+
+- [SECURITY] Update connect images to use latest base image. {2738}
+- [SECURITY] Update Debian packages for the Docker release images. {2694}
+
 [//]: # "START/v1.5.6"
 
 # v1.5.6
