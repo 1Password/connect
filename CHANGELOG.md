@@ -1,3 +1,9 @@
+[//]: # "START/v1.6.0"
+
+# v1.6.0
+This release moves Connect to a distroless base image.
+- [SECURITY] Connect Docker images  are now based on gcr.io/distroless/base to reduce the number of false positives when scanned with container security tools. {3296}
+
 [//]: # "START/v1.5.8"
 
 # v1.5.8

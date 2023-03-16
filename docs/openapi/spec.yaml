@@ -3,7 +3,7 @@ info:
   title: 1Password Connect
   description: >-
     REST API interface for 1Password Connect.
-  version: "1.5.1"
+  version: "1.6.0"
   contact:
     name: 1Password Integrations
     email: support@1password.com
@@ -167,6 +167,8 @@ components:
             - "DOCUMENT"
             - "EMAIL_ACCOUNT"
             - "SOCIAL_SECURITY_NUMBER"
+            - "MEDICAL_RECORD"
+            - "SSH_KEY"
             - "CUSTOM"
         urls:
           type: array
@@ -175,6 +177,8 @@ components:
             required:
               - href
             properties:
+              label:
+                type: string
               primary:
                 type: boolean
               href:
@@ -347,7 +351,7 @@ components:
         properties:
           op:
             type: string
-            enum: [add, remove, replace]
+            enum: [ add, remove, replace ]
           path:
             type: string
             description: An RFC6901 JSON Pointer pointing to the Item document, an Item Attribute, and Item Field by Field ID, or an Item Field Attribute
@@ -378,7 +382,7 @@ paths:
         - Activity
       summary: Retrieve a list of API Requests that have been made.
       security:
-        - ConnectToken: []
+        - ConnectToken: [ ]
       parameters:
         - in: query
           name: limit
@@ -425,7 +429,7 @@ paths:
         - Vaults
       summary: Get all Vaults
       security:
-        - ConnectToken: []
+        - ConnectToken: [ ]
       parameters:
         - in: query
           name: filter
@@ -458,7 +462,7 @@ paths:
         - Vaults
       summary: Get Vault details and metadata
       security:
-        - ConnectToken: []
+        - ConnectToken: [ ]
       parameters:
         - in: path
           name: vaultUuid
@@ -508,7 +512,7 @@ paths:
         - Items
       summary: Get all items for inside a Vault
       security:
-        - ConnectToken: []
+        - ConnectToken: [ ]
       parameters:
         - in: path
           name: vaultUuid
@@ -556,7 +560,7 @@ paths:
         - Items
       summary: Create a new Item
       security:
-        - ConnectToken: []
+        - ConnectToken: [ ]
       parameters:
         - in: path
           name: vaultUuid
@@ -623,7 +627,7 @@ paths:
         - Items
       summary: Get the details of an Item
       security:
-        - ConnectToken: []
+        - ConnectToken: [ ]
       parameters:
         - in: path
           name: vaultUuid
@@ -687,7 +691,7 @@ paths:
         - Items
       summary: Update an Item
       security:
-        - ConnectToken: []
+        - ConnectToken: [ ]
       parameters:
         - in: path
           name: vaultUuid
@@ -765,7 +769,7 @@ paths:
         - Items
       summary: Delete an Item
       security:
-        - ConnectToken: []
+        - ConnectToken: [ ]
       parameters:
         - in: path
           name: vaultUuid
@@ -850,42 +854,35 @@ paths:
             examples:
               ReplaceAllAttributes:
                 value:
-                  -
-                    op: replace
+                  - op: replace
                     path: "/"
-                    value: { "title": "New Title", "favorite": true, "tags": ["tag1", "tag2"], "...":"Any attr from FullItem schema" }
+                    value: { "title": "New Title", "favorite": true, "tags": [ "tag1", "tag2" ], "...": "Any attr from FullItem schema" }
                 summary: Replace an entire Item with new fields. Equivalent to a PUT request.
               PatchItemAttr:
                 value:
-                  -
-                    op: "replace"
+                  - op: "replace"
                     path: "/favorite"
                     value: true
-                  -
-                    op: "remove"
+                  - op: "remove"
                     path: "/tags/1"
                 summary: Update specific Item attributes
               PatchItemField:
                 value:
-                  -
-                    op: "add"
+                  - op: "add"
                     path: "/fields"
-                    value: {"label": "New Field", "type": "string", "value": "hunter2"}
+                    value: { "label": "New Field", "type": "string", "value": "hunter2" }
                 summary: Add a new ItemField to the Item
               PatchItemFieldWithID:
                 value:
-                  -
-                    op: "replace"
+                  - op: "replace"
                     path: "/fields/r9qxq7xnhfhukoxsc8ymqr0y11"
-                    value: {"label": "Replacement Title", "type": "string", "value": "new value"}
-                  -
-                    op: "remove"
+                    value: { "label": "Replacement Title", "type": "string", "value": "new value" }
+                  - op: "remove"
                     path: "/fields/h2nl155dshi043yse7wa3u1hs7"
                 summary: Modify or remove an ItemField.
               PatchItemFieldAttr:
                 value:
-                  -
-                    op: "add"
+                  - op: "add"
                     path: "/fields/s2ju540zlna8bdj4uro7sj64rk/label"
                     value: "New field name"
                   - op: "remove"
@@ -941,7 +938,7 @@ paths:
         - Files
       summary: Get all the files inside an Item
       security:
-        - ConnectToken: []
+        - ConnectToken: [ ]
       parameters:
         - in: path
           name: vaultUuid
@@ -1017,7 +1014,7 @@ paths:
         - Files
       summary: Get the details of a File
       security:
-        - ConnectToken: []
+        - ConnectToken: [ ]
       parameters:
         - in: path
           name: vaultUuid
@@ -1213,7 +1210,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: ["name", "version"]
+                required: [ "name", "version" ]
                 properties:
                   name:
                     type: string
