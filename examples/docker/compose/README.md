@@ -10,7 +10,7 @@ Before you begin, make sure you have your Connect server's `1password-credential
 volumes:
   - "<filepath_here>/1password-credentials.json:/home/opuser/.op/1password-credentials.json"
 ```
-
+and on Linux make sure you give others right to read via `chmod w+r 1password-credentials.json` as internal docker opuser id hardcoded to id 999. 
 ### Start the Docker containers:
 ```bash
 docker-compose up [-d]
