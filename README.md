@@ -1,4 +1,4 @@
-<img src="https://github.com/1Password/connect/assets/46452606/0f7cf2a8-a290-41fc-b78d-3dfb1017f9be" alt="Header" role="img" >
+<img src="https://github.com/1Password/connect/assets/46452606/0f7cf2a8-a290-41fc-b78d-3dfb1017f9be" alt="" role="img" >
 
 
 <header style="text-align: center;">
