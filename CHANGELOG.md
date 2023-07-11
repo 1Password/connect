@@ -1,4 +1,6 @@
 [//]: # "START/v1.7.1"
+
+# v1.7.1
 This release contains security and performance improvements.
 - [IMPROVED] Connect item usage flushing has been optimised to decrease network traffic to the 1Password servers. {2600}
 
@@ -7,6 +9,7 @@ This release contains security and performance improvements.
 
 [//]: # "START/v1.7.0"
 
+# v1.7.0
 This release improves an error message and fixes two bugs.
 - [IMPROVED] Creating a new DOCUMENT item now correctly returns an error message that this is not supported. {3127}
 
@@ -16,6 +19,7 @@ This release improves an error message and fixes two bugs.
 
 [//]: # "START/v1.6.1"
 
+# v1.6.1
 This release addresses memory leak issues for Connect.
 - [FIXED] Addressed a problem that caused Connect's memory consumption to increase with about 100B for every request handled. {2842}
 - [FIXED] Addressed a problem that could cause Connect's memory consumption to increase by more than 1KB per request served after one of the containers (connect-api or connect-sync) disconnected. {3362}
