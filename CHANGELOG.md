@@ -1,3 +1,25 @@
+[//]: # "START/v1.7.1"
+This release contains security and performance improvements.
+- [IMPROVED] Connect item usage flushing has been optimised to decrease network traffic to the 1Password servers. {2600}
+
+- [SECURITY] Addressed bug where PATCH could be abused to read items using a write only token. Credit to Carlos Baraza. {3392}
+
+
+[//]: # "START/v1.7.0"
+
+This release improves an error message and fixes two bugs.
+- [IMPROVED] Creating a new DOCUMENT item now correctly returns an error message that this is not supported. {3127}
+
+- [FIXED] Connect should no longer sporadically return an "database is locked" error when synchronising with the 1Password servers. {3381}
+- [FIXED] Requests to /v1/vaults/{vaultUUID}/items no longer causes "Invalid Item UUID" to be logged. {3254}
+
+
+[//]: # "START/v1.6.1"
+
+This release addresses memory leak issues for Connect.
+- [FIXED] Addressed a problem that caused Connect's memory consumption to increase with about 100B for every request handled. {2842}
+- [FIXED] Addressed a problem that could cause Connect's memory consumption to increase by more than 1KB per request served after one of the containers (connect-api or connect-sync) disconnected. {3362}
+
 [//]: # "START/v1.6.0"
 
 # v1.6.0
