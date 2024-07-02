@@ -1,3 +1,21 @@
+[//]: # "START/v1.7.3"
+
+# v1.7.3
+This release updates the dependencies and the images used to build Connect.
+
+- [IMPROVED] Update go version to 1.22.4. {4146}
+
+- [SECURITY] Upgraded to Go 1.21.x and Debian 12 Bookworm for building and CI. {3870}
+- [SECURITY] Bump google.golang.org/grpc to address a vulnerable dependency alert. {3855}
+
+[//]: # "START/v1.7.2"
+
+# v1.7.2
+This release contains bug fixes.
+
+- [FIXED] Connect can update Document items. {3709}
+- [FIXED] The first request sent to a new Connect server should not respond with a '401 invalid bearer token' error. {3711}
+
 [//]: # "START/v1.7.1"
 
 # v1.7.1
