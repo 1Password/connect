@@ -1,6 +1,5 @@
 services:
   api:
     environment:
-      OP_TLS_USE_LETSENCRYPT: true
-      OP_TLS_DOMAIN: ${OP_TLS_DOMAIN:?the domain name of a public DNS record that points to the publicly available endpoint of your Connect server}
+      OP_TLS_USE_LETSENCRYPT: 1
     ports: [443:8443]
