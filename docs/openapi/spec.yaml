@@ -257,7 +257,7 @@ components:
             - "EMAIL"
             - "CONCEALED"
             - "URL"
-            - "TOTP"
+            - "OTP"
             - "DATE"
             - "MONTH_YEAR"
             - "MENU"
