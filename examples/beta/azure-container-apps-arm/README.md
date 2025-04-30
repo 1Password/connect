@@ -39,9 +39,45 @@ Before you begin, ensure you have an Azure account with permission to create a C
 
 Once your deployment is complete, click **Go to resource group** and click on the container app you created.
 
-To test if your Connect Server is online, choose **Overview** in your application's sidebar, then click your **Application Url** link. This is your **Connect Server URL**. Use your 1Password Connect access token to interact with the API (e.g., via a `curl` request or a client application) to verify that your Connect Server is connected to your 1Password account.
+To test if your Connect Server is online, choose **Overview** in your application's sidebar, then copy your **Application Url** link. This is your **Connect Server URL**. Use your 1Password Connect access token to interact with the API (e.g., via a `curl` request or a client application) to verify that your Connect Server is connected to your 1Password account.
 
-Refer to the [1Password Connect documentation](https://developer.1password.com/docs/connect) for details on making API requests.
+```sh
+curl --silent --show-error --request GET --header "Accept: application/json" \
+  --header "Authorization: Bearer mF_9.B5f-4.1JqM" \
+  https:/op-connect.example.com/health
+```
+
+<details>
+<summary>Example JSON response:</summary>
+
+```json
+{
+  "name": "1Password Connect API",
+  "version": "1.7.3",
+  "dependencies":
+    [
+      {
+        "service": "sqlite",
+        "status": "ACTIVE",
+        "message": "Connected to /home/opuser/.op/data/1password.sqlite",
+      },
+      {
+        "service": "account_data",
+        "status": "AVAILABLE",
+        "message": "Account data is available",
+      },
+      { "service": "sync", "status": "ACTIVE" },
+      {
+        "service": "1Password",
+        "status": "UNINITIALIZED",
+        "message": "Make a request with a valid bearer token to initialize",
+      },
+    ],
+}
+```
+
+</details>
+<br />
 
 ## Step 4: Integrate with your application
 
