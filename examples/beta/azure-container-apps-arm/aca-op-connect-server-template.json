@@ -1,0 +1,165 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "logAnalyticsWorkspaceName": {
+      "type": "string",
+      "defaultValue": "op-connect-con-app-log-analytics",
+      "metadata": {
+        "description": "The name of the Log Analytics Workspace."
+      }
+    },
+    "containerAppName": {
+      "type": "string",
+      "defaultValue": "op-connect-con-app",
+      "metadata": {
+        "description": "The name of the Container App."
+      }
+    },
+    "containerAppEnvName": {
+      "type": "string",
+      "defaultValue": "op-connect-con-env",
+      "metadata": {
+        "description": "The name of the Container App Environment."
+      }
+    },
+    "credentials": {
+      "type": "SecureString",
+      "metadata": {
+        "description": "The plain text contents of 1password-credentials.json."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2022-10-01",
+      "name": "[parameters('logAnalyticsWorkspaceName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.App/managedEnvironments",
+      "apiVersion": "2023-05-01",
+      "name": "[parameters('containerAppEnvName')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsWorkspaceName'))]"
+      ],
+      "properties": {
+        "appLogsConfiguration": {
+          "destination": "log-analytics",
+          "logAnalyticsConfiguration": {
+            "customerId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsWorkspaceName'))).customerId]",
+            "sharedKey": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsWorkspaceName')), '2022-10-01').primarySharedKey]"
+          }
+        },
+        "zoneRedundant": false
+      }
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2023-05-01",
+      "name": "[parameters('containerAppName')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', parameters('containerAppEnvName'))]"
+      ],
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', parameters('containerAppEnvName'))]",
+        "configuration": {
+          "secrets": [
+            {
+              "name": "credentials",
+              "value": "[parameters('credentials')]"
+            }
+          ],
+          "activeRevisionsMode": "Single",
+          "ingress": {
+            "external": true,
+            "targetPort": 8080,
+            "allowInsecure": false,
+            "traffic": [
+              {
+                "latestRevision": true,
+                "weight": 100
+              }
+            ]
+          }
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "connect-api",
+              "image": "docker.io/1password/connect-api:latest",
+              "resources": {
+                "cpu": 0.25,
+                "memory": "0.5Gi"
+              },
+              "volumeMounts": [
+                {
+                  "volumeName": "data",
+                  "mountPath": "/home/opuser/.op/data"
+                },
+                {
+                  "volumeName": "credentials",
+                  "mountPath": "/home/opuser/.op/1password-credentials.json",
+                  "subPath": "1password-credentials.json"
+                }
+              ]
+            },
+            {
+              "name": "connect-sync",
+              "image": "docker.io/1password/connect-sync:latest",
+              "resources": {
+                "cpu": 0.25,
+                "memory": "0.5Gi"
+              },
+              "env": [
+                {
+                  "name": "OP_HTTP_PORT",
+                  "value": "8081"
+                }
+              ],
+              "volumeMounts": [
+                {
+                  "volumeName": "data",
+                  "mountPath": "/home/opuser/.op/data"
+                },
+                {
+                  "volumeName": "credentials",
+                  "mountPath": "/home/opuser/.op/1password-credentials.json",
+                  "subPath": "1password-credentials.json"
+                }
+              ]
+            }
+          ],
+          "volumes": [
+            {
+              "name": "data",
+              "storageType": "EmptyDir"
+            },
+            {
+              "name": "credentials",
+              "storageType": "Secret",
+              "secrets": [
+                {
+                  "secretRef": "credentials",
+                  "path": "1password-credentials.json"
+                }
+              ]
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 1
+          }
+        }
+      }
+    }
+  ]
+}
