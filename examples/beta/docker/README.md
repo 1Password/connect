@@ -29,7 +29,7 @@ The open source Docker Engine tooling can be used to deploy 1Password Connect Se
 > [!Note]
 > Before proceeding, review the [Get Started](https://developer.1password.com/docs/connect/get-started/) page from our 1Password Developer page.
 
-Create a public DNS record that points to the public IP address of the Linux server for your Connect server if you wish to have this pubically available. For example, `op-connect-server.example.com`.
+Create a public DNS record that points to the public IP address of the Linux server for your Connect server if you wish to have this publicly available. For example, `op-connect-server.example.com`.
 
 ### 🛠️ Prepare the Linux server
 
@@ -42,7 +42,7 @@ On the Linux machine that you will be using as the Docker host for your Connect 
 
 All following steps should be run on the same computer where you are already using 1Password, or another machine that can access the Linux server using SSH and has access to the `1password-credentials.json` file from the integration setup:
 
-1. If you haven't already done so, install Docker. You can use [Docker Desktop](https://docs.docker.com/engine/install/#desktop), [install Docker Engine from binaries](https://docs.docker.com/engine/install/binaries/), or install Docker using your favourite package manager.
+1. If you haven't already done so, install Docker. You can use [Docker Desktop](https://docs.docker.com/engine/install/#desktop), [install Docker Engine from binaries](https://docs.docker.com/engine/install/binaries/), or install Docker using your favorite package manager.
 
 2. Open your preferred terminal. Clone this repository and switch to this directory:
 
@@ -51,9 +51,9 @@ All following steps should be run on the same computer where you are already usi
    cd ./connect/examples/beta/docker
    ```
 
-3. Save the `1password-credentials.json` file from [the Automated User Provisioning setup](https://start.1password.com/developer-tools/directory/) to this working directory.
+3. Save the `1password-credentials.json` file from [the Connect Server setup](https://start.1password.com/developer-tools/infrastructure-secrets/connect/) to this working directory.
 
-4. Open `connect-api.env` in your favourite text editor. Set the value of `OP_TLS_DOMAIN` to the fully qualififed domain name of the public DNS record for your Connect server if you wish to have this publically available, created in [Get started](#get-started). For example:
+4. Open `connect-api.env` in your favorite text editor. Set the value of `OP_TLS_DOMAIN` to the fully qualified domain name of the public DNS record for your Connect server if you wish to have this publicly available, created in [Get started](#get-started). For example:
 
    ```dotenv
    # ...
@@ -191,7 +191,7 @@ For example, if you create new credentials for the Connect server:
    docker service scale op-connect_api=0 op-connect_sync=0
    ```
 
-2. Update the service definition to unnmount the the `1password-credentials.json` Docker secret:
+2. Update the service definition to unmount the the `1password-credentials.json` Docker secret:
 
    ```sh
    docker service update --secret-rm credentials op-connect_api && \
@@ -230,7 +230,7 @@ A similar process can be used to update the values for any other Docker secrets 
 
 ## Appendix: Customize your Connect server
 
-Many Connect server configuration changes can be made by adding or removing environment variables. These can be customized by making changes to [`connect-api.env`](./connect-api.env) and [`connect-sync.env`](./connect-sync.env) (that can be commited to your source control) before deploying (or redeploying) your Connect server using the `docker stack deploy` command. For some use cases, it may be desirable to update the configuration "on the fly" from your terminal.
+Many Connect server configuration changes can be made by adding or removing environment variables. These can be customized by making changes to [`connect-api.env`](./connect-api.env) and [`connect-sync.env`](./connect-sync.env) (that can be committed to your source control) before deploying (or redeploying) your Connect server using the `docker stack deploy` command. For some use cases, it may be desirable to update the configuration "on the fly" from your terminal.
 
 For example, to reboot your Connect server with debug logging enabled:
 
@@ -239,7 +239,7 @@ docker service update op-connect_api \
     --env-add OP_DEBUG=1
 ```
 
-To turn off debug logging and inject some colour into the logs in your console:
+To turn off debug logging and inject some color into the logs in your console:
 
 ```sh
 docker service update op-connect_api \
@@ -251,7 +251,7 @@ _Pretty logs pair nicely with the `--raw` parameter of the `docker service logs`
 
 ### 🔒 Advanced TLS options
 
-Identity providers strictly require an HTTPS endpoint with a vlid TLS certificate to use for the Connect server URL. Your 1Password Connect server includes an optional CertificateManager component that (by default) acquires and manages a TLS certificate using Let's Encrypt, and terminates TLS traffic at the Connect server container using this certificate. This requires port 443 of the Docker host to be publicly accessible to ensure Let's Encrypt can initiate an inbound connection to your Connect server.
+Identity providers strictly require an HTTPS endpoint with a valid TLS certificate to use for the Connect server URL. Your 1Password Connect server includes an optional CertificateManager component that (by default) acquires and manages a TLS certificate using Let's Encrypt, and terminates TLS traffic at the Connect server container using this certificate. This requires port 443 of the Docker host to be publicly accessible to ensure Let's Encrypt can initiate an inbound connection to your Connect server.
 
 Other supported options include:
 
