@@ -44,7 +44,7 @@ To test if your Connect Server is online, choose **Overview** in your applicatio
 ```sh
 curl --silent --show-error --request GET --header "Accept: application/json" \
   --header "Authorization: Bearer mF_9.B5f-4.1JqM" \
-  https:/op-connect.example.com/health
+  https://op-connect.example.com/health
 ```
 
 <details>
