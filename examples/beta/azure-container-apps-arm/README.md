@@ -51,29 +51,38 @@ curl --silent --show-error --request GET --header "Accept: application/json" \
 <summary>Example JSON response:</summary>
 
 ```json
-{
-  "name": "1Password Connect API",
-  "version": "1.7.3",
-  "dependencies":
-    [
-      {
-        "service": "sqlite",
-        "status": "ACTIVE",
-        "message": "Connected to /home/opuser/.op/data/1password.sqlite",
-      },
-      {
-        "service": "account_data",
-        "status": "AVAILABLE",
-        "message": "Account data is available",
-      },
-      { "service": "sync", "status": "ACTIVE" },
-      {
-        "service": "1Password",
-        "status": "UNINITIALIZED",
-        "message": "Make a request with a valid bearer token to initialize",
-      },
-    ],
-}
+[
+  {
+    "attributeVersion": 1,
+    "contentVersion": 9,
+    "createdAt": "2025-03-21T13:06:35Z",
+    "id": "hgm3sn37vkj3lsdkeouq46wyca",
+    "items": 5,
+    "name": "REDACTED",
+    "type": "USER_CREATED",
+    "updatedAt": "2025-04-18T16:38:40Z"
+  },
+  {
+    "attributeVersion": 1,
+    "contentVersion": 2,
+    "createdAt": "2025-03-21T02:15:33Z",
+    "id": "mn4w65hq6ar7nc2fc7qgoru3ki",
+    "items": 1,
+    "name": "REDACTED",
+    "type": "USER_CREATED",
+    "updatedAt": "2025-03-21T02:16:32Z"
+  },
+  {
+    "attributeVersion": 1,
+    "contentVersion": 94,
+    "createdAt": "2025-03-21T15:20:41Z",
+    "id": "z4s56cbejab6q6urod3l5icqky",
+    "items": 3,
+    "name": "REDACTED",
+    "type": "USER_CREATED",
+    "updatedAt": "2025-04-29T02:49:13Z"
+  }
+]
 ```
 
 </details>
