@@ -1,0 +1,47 @@
+services:
+  api:
+    image: 1password/connect-api
+    networks: [op-connect]
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+    secrets:
+      - source: credentials
+        target: /home/opuser/.op/1password-credentials.json
+        uid: "999"
+        gid: "999"
+        mode: 0400
+    volumes:
+      - data:/home/opuser/.op/data
+    env_file: connect-api.env
+    user: "999:999"
+
+  sync:
+    image: 1password/connect-sync
+    networks: [op-connect]
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+    secrets:
+      - source: credentials
+        target: /home/opuser/.op/1password-credentials.json
+        uid: "999"
+        gid: "999"
+        mode: 0400
+    volumes:
+      - data:/home/opuser/.op/data
+    env_file: connect-sync.env
+    user: "999:999"
+
+volumes:
+  data:
+
+secrets:
+  credentials:
+    file: 1password-credentials.json
+    name: credentials
+
+networks:
+  op-connect:

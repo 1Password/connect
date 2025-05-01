@@ -1,0 +1,5 @@
+services:
+  api:
+    environment:
+      OP_TLS_USE_LETSENCRYPT: 1
+    ports: [443:8443]

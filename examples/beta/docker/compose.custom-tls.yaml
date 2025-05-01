@@ -1,0 +1,22 @@
+services:
+  api:
+    environment: [OP_TLS_CERT_FILE=/home/opuser/.op/tls.crt, OP_TLS_KEY_FILE=/home/opuser/.op/tls.key]
+    ports: [443:8443]
+    secrets:
+      - source: op-tls-crt
+        target: /home/opuser/.op/tls.crt
+        uid: "999"
+        gid: "999"
+        mode: 0440
+      - source: op-tls-key
+        target: /home/opuser/.op/tls.key
+        uid: "999"
+        gid: "999"
+        mode: 0440
+secrets:
+  op-tls-crt:
+    file: certificate.pem
+    name: op-tls-crt
+  op-tls-key:
+    file: key.pem
+    name: op-tls-key

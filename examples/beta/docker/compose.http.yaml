@@ -1,0 +1,3 @@
+services:
+  api:
+    ports: [80:8080]
