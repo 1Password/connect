@@ -1,0 +1,533 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Deploy 1Password Connect in AWS Fargate with API Gateway for ingress, converting plain JSON credentials to base64 in Secrets Manager with optional VPC configuration
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Network and Credentials Configuration
+        Parameters:
+          - VPCID
+          - VPCCIDR
+          - PublicSubnets
+          - CredentialsJson
+    ParameterLabels:
+      CredentialsJson:
+        default: 1Password Credentials JSON
+      VPCID:
+        default: VPC ID
+      VPCCIDR:
+        default: VPC CIDR
+      PublicSubnets:
+        default: Public Subnets
+
+Parameters:
+  VPCID:
+    Type: String
+    Description: (Optional) ID of an existing VPC to use for your Connect deployment. If empty, a new VPC and two public subnets will be created.
+    Default: ""
+  VPCCIDR:
+    Type: String
+    Description: A CIDR block for the VPC. Required if VPCID is empty; ignored if specifying a VPCID.
+    Default: 10.0.0.0/16
+  PublicSubnets:
+    Type: CommaDelimitedList
+    Description: (Optional) A comma-separated list of two or more public subnet IDs in the specified VPC.
+    Default: ""
+  CredentialsJson:
+    Type: String
+    Description: The plain JSON contents of the 1password-credentials.json file (e.g., {"token":"your-token",...})
+    NoEcho: true
+    MinLength: 1
+    ConstraintDescription: must not be empty
+
+Conditions:
+  CreateVPC: !Equals [!Ref VPCID, ""]
+
+Mappings:
+  SubnetConfig:
+    VPC:
+      CIDR: '10.0.0.0/16'
+    PublicOne:
+      CIDR: '10.0.1.0/24'
+    PublicTwo:
+      CIDR: '10.0.2.0/24'
+
+Resources:
+  # Lambda Execution Role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:CreateSecret
+                  - secretsmanager:PutSecretValue
+                  - secretsmanager:DeleteSecret
+                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:CredentialsSecret-${AWS::StackName}*'
+        - PolicyName: LambdaLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/Base64EncoderFunction-${AWS::StackName}:*'
+
+  # Lambda Function for Base64 Encoding
+  Base64EncoderFunction:
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - LambdaExecutionRole
+    Properties:
+      FunctionName: !Sub 'Base64EncoderFunction-${AWS::StackName}'
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import base64
+          import boto3
+          import cfnresponse
+          import logging
+
+          logging.basicConfig(level=logging.INFO)
+          logger = logging.getLogger()
+
+          def handler(event, context):
+              try:
+                  request_type = event['RequestType']
+                  props = event['ResourceProperties']
+                  plain_json = props['PlainJson']
+                  secret_name = props['SecretName']
+
+                  # Validate JSON input
+                  try:
+                      json.loads(plain_json)
+                  except json.JSONDecodeError:
+                      logger.error('Invalid JSON input')
+                      cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': 'Invalid JSON input'})
+
+                  # Encode plain JSON to base64
+                  base64_credentials = base64.b64encode(plain_json.encode('utf-8')).decode('utf-8')
+
+                  # Initialize Secrets Manager client with retries
+                  secrets_client = boto3.client('secretsmanager', config=boto3.session.Config(retries={'max_attempts': 3}))
+
+                  # Extract region and account ID
+                  region = context.invoked_function_arn.split(':')[3]
+                  account_id = context.invoked_function_arn.split(':')[4]
+                  secret_arn = f'arn:aws:secretsmanager:{region}:{account_id}:secret:{secret_name}'
+
+                  logger.info(f'Processing {request_type} for secret: {secret_name}')
+                  if request_type == 'Create':
+                      secrets_client.create_secret(Name=secret_name, SecretString=base64_credentials)
+                      logger.info(f'Created secret: {secret_arn}')
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {'SecretArn': secret_arn})
+                  elif request_type == 'Update':
+                      secrets_client.put_secret_value(SecretId=secret_name, SecretString=base64_credentials)
+                      logger.info(f'Updated secret: {secret_arn}')
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {'SecretArn': secret_arn})
+                  elif request_type == 'Delete':
+                      try:
+                          secrets_client.delete_secret(SecretId=secret_name, ForceDeleteWithoutRecovery=True)
+                          logger.info(f'Deleted secret: {secret_name}')
+                      except secrets_client.exceptions.ResourceNotFoundException:
+                          logger.info(f'Secret not found: {secret_name}, skipping deletion')
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                  else:
+                      logger.error(f'Invalid request type: {request_type}')
+                      cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': f'Invalid request type: {request_type}'})
+              except Exception as e:
+                  logger.error(f'Error: {str(e)}')
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': str(e)})
+      Runtime: python3.12
+      Timeout: 15
+      MemorySize: 128
+
+  # Custom Resource to Create Base64 Secret
+  Base64CredentialsSecret:
+    Type: Custom::Base64Secret
+    DependsOn:
+      - Base64EncoderFunction
+    Properties:
+      ServiceToken: !GetAtt Base64EncoderFunction.Arn
+      PlainJson: !Ref CredentialsJson
+      SecretName: !Sub 'CredentialsSecret-${AWS::StackName}'
+
+  # VPC Configuration
+  VPC:
+    Condition: CreateVPC
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+
+  PublicSubnetOne:
+    Condition: CreateVPC
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ''
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap ['SubnetConfig', 'PublicOne', 'CIDR']
+      MapPublicIpOnLaunch: true
+
+  PublicSubnetTwo:
+    Condition: CreateVPC
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ''
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap ['SubnetConfig', 'PublicTwo', 'CIDR']
+      MapPublicIpOnLaunch: true
+
+  InternetGateway:
+    Condition: CreateVPC
+    Type: AWS::EC2::InternetGateway
+
+  GatewayAttachment:
+    Condition: CreateVPC
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Condition: CreateVPC
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PublicRoute:
+    Condition: CreateVPC
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetOneRouteTableAssociation:
+    Condition: CreateVPC
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetOne
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetTwoRouteTableAssociation:
+    Condition: CreateVPC
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetTwo
+      RouteTableId: !Ref PublicRouteTable
+
+  # ECS Cluster
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      CapacityProviders:
+        - FARGATE
+      DefaultCapacityProviderStrategy:
+        - CapacityProvider: FARGATE
+          Weight: 1
+
+  # Security Groups
+  FargateContainerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Access to the Fargate containers
+      VpcId: !If [CreateVPC, !Ref VPC, !Ref VPCID]
+
+  ApiGatewaySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: API Gateway traffic for 1Password Connect
+      VpcId: !If [CreateVPC, !Ref VPC, !Ref VPCID]
+
+  # Security Group Rules
+  ApiGatewayEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref ApiGatewaySecurityGroup
+      IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      DestinationSecurityGroupId: !Ref FargateContainerSecurityGroup
+
+  ConnectIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref FargateContainerSecurityGroup
+      IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      SourceSecurityGroupId: !Ref ApiGatewaySecurityGroup
+
+  ConnectSelfIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Ingress from other containers in the same security group
+      GroupId: !Ref FargateContainerSecurityGroup
+      IpProtocol: -1
+      SourceSecurityGroupId: !Ref FargateContainerSecurityGroup
+
+  ConnectPublicEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref FargateContainerSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: 0.0.0.0/0
+      Description: HTTPS to external services (e.g., Docker Hub)
+
+  # IAM Roles
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AmazonECSTaskExecutionRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+        - PolicyName: SecretAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:CredentialsSecret-${AWS::StackName}*'
+
+  ECSRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ECSPermissions
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:AttachNetworkInterface
+                  - ec2:CreateNetworkInterface
+                  - ec2:DeleteNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DetachNetworkInterface
+                Resource: '*'
+
+  # CloudWatch Logs
+  CloudWatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: onepassword-connect
+      RetentionInDays: 30
+
+  # Service Discovery
+  ServiceDiscoveryNamespace:
+    Type: AWS::ServiceDiscovery::PrivateDnsNamespace
+    Properties:
+      Description: Private DNS namespace for 1Password Connect
+      Vpc: !If [CreateVPC, !Ref VPC, !Ref VPCID]
+      Name: onepassword
+
+  ConnectServiceDiscovery:
+    Type: AWS::ServiceDiscovery::Service
+    DependsOn:
+      - ServiceDiscoveryNamespace
+    Properties:
+      DnsConfig:
+        DnsRecords:
+          - TTL: 60
+            Type: SRV
+      Name: connect
+      NamespaceId: !Ref ServiceDiscoveryNamespace
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+
+  # Task Definition
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    DependsOn:
+      - ECSTaskExecutionRole
+      - Base64CredentialsSecret
+      - CloudWatchLogsGroup
+    Properties:
+      Cpu: 256
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !Ref ECSTaskExecutionRole
+      TaskRoleArn: !Ref ECSRole
+      Volumes:
+        - Name: data
+      ContainerDefinitions:
+        - Name: connect-api
+          Image: 1password/connect-api:latest
+          PortMappings:
+            - ContainerPort: 8080
+              Protocol: tcp
+          MountPoints:
+            - ContainerPath: /home/opuser/.op/data
+              SourceVolume: data
+          Secrets:
+            - Name: OP_SESSION
+              ValueFrom: !GetAtt Base64CredentialsSecret.SecretArn
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref CloudWatchLogsGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: connect-api
+        - name: connect-sync
+          Image: 1password/connect-sync:latest
+          MountPoints:
+            - ContainerPath: /home/opuser/.op/data
+              SourceVolume: data
+          Environment:
+            - Name: OP_HTTP_PORT
+              Value: '8081'
+          Secrets:
+            - Name: OP_SESSION
+              ValueFrom: !GetAtt Base64CredentialsSecret.SecretArn
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref CloudWatchLogsGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: connect-sync
+
+  # ECS Service
+  ConnectService:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - TaskDefinition
+      - Base64CredentialsSecret
+      - ApiGatewayStage
+      - ConnectServiceDiscovery
+    Properties:
+      ServiceName: connect
+      Cluster: !Ref ECSCluster
+      LaunchType: FARGATE
+      DesiredCount: 1
+      TaskDefinition: !Ref TaskDefinition
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref FargateContainerSecurityGroup
+          Subnets: !If
+            - CreateVPC
+            - [!Ref PublicSubnetOne, !Ref PublicSubnetTwo]
+            - !Ref PublicSubnets
+      ServiceRegistries:
+        - ContainerName: connect-api
+          ContainerPort: 8080
+          RegistryArn: !GetAtt ConnectServiceDiscovery.Arn
+
+  # API Gateway
+  VpcLink:
+    Type: AWS::ApiGatewayV2::VpcLink
+    Properties:
+      Name: connect-vpc-link
+      SecurityGroupIds:
+        - !Ref ApiGatewaySecurityGroup
+      SubnetIds: !If
+        - CreateVPC
+        - [!Ref PublicSubnetOne, !Ref PublicSubnetTwo]
+        - !Ref PublicSubnets
+
+  ApiGateway:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: onepassword-connect
+      ProtocolType: HTTP
+      Description: API Gateway for 1Password Connect
+
+  ApiGatewayIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    DependsOn:
+      - ApiGateway
+      - VpcLink
+    Properties:
+      ApiId: !Ref ApiGateway
+      IntegrationType: HTTP_PROXY
+      IntegrationMethod: ANY
+      ConnectionType: VPC_LINK
+      ConnectionId: !Ref VpcLink
+      IntegrationUri: !GetAtt ConnectServiceDiscovery.Arn
+      PayloadFormatVersion: 1.0
+
+  ApiGatewayRoute:
+    Type: AWS::ApiGatewayV2::Route
+    DependsOn:
+      - ApiGateway
+      - ApiGatewayIntegration
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: $default
+      AuthorizationType: NONE
+      Target: !Join
+        - /
+        - - integrations
+          - !Ref ApiGatewayIntegration
+
+  ApiGatewayStage:
+    Type: AWS::ApiGatewayV2::Stage
+    DependsOn:
+      - ApiGateway
+      - ApiGatewayRoute
+    Properties:
+      StageName: $default
+      ApiId: !Ref ApiGateway
+      AutoDeploy: true
+
+Outputs:
+  ExternalUrl:
+    Description: The URL of the API Gateway for 1Password Connect
+    Value: !GetAtt ApiGateway.ApiEndpoint
+    Export:
+      Name: !Join [ ':', [ !Ref AWS::StackName, 'ExternalUrl' ] ]
