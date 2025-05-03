@@ -1,11 +1,12 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Deploys 1Password Connect on Fargate with API Gateway. Creates a VPC if not provided, handles creds with a Lambda for base64.
+Description: Sets up 1Password Connect on Fargate with API Gateway, stores 1password-credentials.json in Secrets Manager, and makes a VPC if you don’t give one
 
+# Makes the params look nice in the AWS console
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: Network & Creds Setup
+          default: Network & Credentials Setup
         Parameters:
           - VPCID
           - VPCCIDR
@@ -13,7 +14,7 @@ Metadata:
           - CredentialsJson
     ParameterLabels:
       CredentialsJson:
-        default: 1Password Creds JSON
+        default: 1Password Credentials JSON
       VPCID:
         default: VPC ID
       VPCCIDR:
@@ -21,122 +22,53 @@ Metadata:
       PublicSubnets:
         default: Public Subnets
 
+# Stuff you can tweak when you deploy
 Parameters:
   VPCID:
     Type: String
-    Description: Existing VPC ID to use (leave blank to create a new one)
+    Description: Got a VPC ID? Toss it here, or leave it blank to make a new one
     Default: ""
   VPCCIDR:
     Type: String
-    Description: CIDR for the new VPC if creating one
+    Description: CIDR for a new VPC if we're making one
     Default: 10.0.0.0/16
   PublicSubnets:
     Type: CommaDelimitedList
-    Description: List of public subnet IDs (need at least 2)
+    Description: List of public subnet IDs, need at least 2 if you're using an existing VPC
     Default: ""
   CredentialsJson:
     Type: String
     Description: Your 1password-credentials.json as plain JSON
     NoEcho: true
     MinLength: 1
-    ConstraintDescription: can't be empty
+    ConstraintDescription: gotta have something here
 
+# Check if we need to whip up a new VPC
 Conditions:
-  CreateVPC: !Equals [!Ref VPCID, ""]
+  CreateVPC:
+    Fn::Equals:
+      - !Ref VPCID
+      - ""
+
+# Predefined CIDRs for the VPC and subnets
+Mappings:
+  SubnetConfig:
+    VPC:
+      CIDR: '10.0.0.0/16'
+    PublicOne:
+      CIDR: '10.0.1.0/24'
+    PublicTwo:
+      CIDR: '10.0.2.0/24'
 
 Resources:
-  # Lambda role for base64 encoding
-  LambdaExecutionRole:
-    Type: AWS::IAM::Role
+  # Secret to store the base64-encoded credentials
+  CredentialsSecret:
+    Type: AWS::SecretsManager::Secret
     Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: SecretsManagerAccess
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - secretsmanager:CreateSecret
-                  - secretsmanager:PutSecretValue
-                  - secretsmanager:DeleteSecret
-                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:CredentialsSecret-${AWS::StackName}*'
-        - PolicyName: LambdaLogs
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/Base64EncoderFunction-${AWS::StackName}:*'
+      Name: !Sub 'CredentialsSecret-${AWS::StackName}'
+      SecretString: !Base64 { "Fn::Sub": "${CredentialsJson}" }
 
-  # Lambda to encode creds to base64
-  Base64EncoderFunction:
-    Type: AWS::Lambda::Function
-    DependsOn: LambdaExecutionRole
-    Properties:
-      FunctionName: !Sub 'Base64EncoderFunction-${AWS::StackName}'
-      Handler: index.handler
-      Role: !GetAtt LambdaExecutionRole.Arn
-      Code:
-        ZipFile: |
-          import json, base64, boto3, cfnresponse
-
-          def handler(event, context):
-              try:
-                  props = event['ResourceProperties']
-                  req_type = event['RequestType']
-                  plain_json = props['PlainJson']
-                  secret_name = props['SecretName']
-
-                  # quick check for valid JSON
-                  json.loads(plain_json)
-                  # encode to base64
-                  base64_creds = base64.b64encode(plain_json.encode('utf-8')).decode('utf-8')
-
-                  secrets_client = boto3.client('secretsmanager')
-                  # build the ARN
-                  region = context.invoked_function_arn.split(':')[3]
-                  account_id = context.invoked_function_arn.split(':')[4]
-                  secret_arn = f'arn:aws:secretsmanager:{region}:{account_id}:secret:{secret_name}'
-
-                  if req_type == 'Create':
-                      secrets_client.create_secret(Name=secret_name, SecretString=base64_creds)
-                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {'SecretArn': secret_arn})
-                  elif req_type == 'Update':
-                      secrets_client.put_secret_value(SecretId=secret_name, SecretString=base64_creds)
-                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {'SecretArn': secret_arn})
-                  elif req_type == 'Delete':
-                      try:
-                          secrets_client.delete_secret(SecretId=secret_name, ForceDeleteWithoutRecovery=True)
-                      except:
-                          pass
-                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
-                  else:
-                      cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': f'Bad request type: {req_type}'})
-              except Exception as e:
-                  cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': str(e)})
-      Timeout: 15
-      MemorySize: 128
-      Runtime: python3.12
-
-  # Custom resource to trigger Lambda for creds encoding
-  Base64CredentialsSecret:
-    Type: Custom::Base64Secret
-    DependsOn: Base64EncoderFunction
-    Properties:
-      ServiceToken: !GetAtt Base64EncoderFunction.Arn
-      PlainJson: !Ref CredentialsJson
-      SecretName: !Sub 'CredentialsSecret-${AWS::StackName}'
-
-  # VPC stuff - only creates if VPCID is empty
+  # VPC stuff if we need to make one
   VPC:
     Condition: CreateVPC
     Type: AWS::EC2::VPC
@@ -145,19 +77,19 @@ Resources:
       EnableDnsSupport: true
       EnableDnsHostnames: true
 
-  PublicSubnetOne:
+  PublicSubnetOne: # first subnet for the VPC
     Condition: CreateVPC
     Type: AWS::EC2::Subnet
     Properties:
-      MapPublicIpOnLaunch: true
-      VpcId: !Ref VPC
-      CidrBlock: '10.0.1.0/24'
       AvailabilityZone:
         Fn::Select:
           - 0
           - Fn::GetAZs: ''
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap ['SubnetConfig', 'PublicOne', 'CIDR']
+      MapPublicIpOnLaunch: true
 
-  PublicSubnetTwo:
+  PublicSubnetTwo: # second subnet for the VPC
     Condition: CreateVPC
     Type: AWS::EC2::Subnet
     Properties:
@@ -166,10 +98,10 @@ Resources:
           - 1
           - Fn::GetAZs: ''
       VpcId: !Ref VPC
-      CidrBlock: '10.0.2.0/24'
+      CidrBlock: !FindInMap ['SubnetConfig', 'PublicTwo', 'CIDR']
       MapPublicIpOnLaunch: true
 
-  InternetGateway: # for internet access if we’re creating a VPC
+  InternetGateway: # need this for internet access in the new VPC
     Condition: CreateVPC
     Type: AWS::EC2::InternetGateway
 
@@ -186,10 +118,10 @@ Resources:
     Properties:
       VpcId: !Ref VPC
 
-  PublicRoute:
+  PublicRoute: # sets up the route to the internet
     Condition: CreateVPC
-    Type: AWS::EC2::Route
     DependsOn: GatewayAttachment
+    Type: AWS::EC2::Route
     Properties:
       RouteTableId: !Ref PublicRouteTable
       DestinationCidrBlock: '0.0.0.0/0'
@@ -209,7 +141,7 @@ Resources:
       SubnetId: !Ref PublicSubnetTwo
       RouteTableId: !Ref PublicRouteTable
 
-  # ECS Cluster setup
+  # ECS cluster to run stuff
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
@@ -219,7 +151,7 @@ Resources:
         - CapacityProvider: FARGATE
           Weight: 1
 
-  # Security Groups for Fargate and API Gateway
+  # SGs for Fargate and API Gateway
   FargateContainerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -229,10 +161,11 @@ Resources:
   ApiGatewaySecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      VpcId: !If [CreateVPC, !Ref VPC, !Ref VPCID]
       GroupDescription: API Gateway traffic for 1Password Connect
+      VpcId: !If [CreateVPC, !Ref VPC, !Ref VPCID]
 
-  ApiGatewayEgress:
+  # Security group rules
+  ApiGatewayEgress: # lets API Gateway talk to Fargate
     Type: AWS::EC2::SecurityGroupEgress
     Properties:
       GroupId: !Ref ApiGatewaySecurityGroup
@@ -250,7 +183,7 @@ Resources:
       ToPort: 8080
       SourceSecurityGroupId: !Ref ApiGatewaySecurityGroup
 
-  ConnectSelfIngress: # allows containers in the same SG to talk
+  ConnectSelfIngress: # lets containers in the same SG talk to each other
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       Description: Ingress from other containers in the same security group
@@ -258,7 +191,7 @@ Resources:
       IpProtocol: -1
       SourceSecurityGroupId: !Ref FargateContainerSecurityGroup
 
-  ConnectPublicEgress:
+  ConnectPublicEgress: # Fargate needs internet to grab images
     Type: AWS::EC2::SecurityGroupEgress
     Properties:
       GroupId: !Ref FargateContainerSecurityGroup
@@ -326,7 +259,7 @@ Resources:
                   - ec2:DetachNetworkInterface
                 Resource: '*'
 
-  # CloudWatch Logs setup
+  # Logs in CloudWatch
   CloudWatchLogsGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -355,12 +288,12 @@ Resources:
       HealthCheckCustomConfig:
         FailureThreshold: 1
 
-  # Task definition for Connect containers
+  # Task def for the Connect containers
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     DependsOn:
       - ECSTaskExecutionRole
-      - Base64CredentialsSecret
+      - CredentialsSecret
       - CloudWatchLogsGroup
     Properties:
       Cpu: 256
@@ -368,7 +301,7 @@ Resources:
       NetworkMode: awsvpc
       RequiresCompatibilities:
         - FARGATE
-      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      ExecutionRoleArn: !Ref ECSTaskExecutionRole
       TaskRoleArn: !Ref ECSRole
       Volumes:
         - Name: data
@@ -383,7 +316,7 @@ Resources:
               SourceVolume: data
           Secrets:
             - Name: OP_SESSION
-              ValueFrom: !GetAtt Base64CredentialsSecret.SecretArn
+              ValueFrom: !Ref CredentialsSecret
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -400,7 +333,7 @@ Resources:
               Value: '8081'
           Secrets:
             - Name: OP_SESSION
-              ValueFrom: !GetAtt Base64CredentialsSecret.SecretArn
+              ValueFrom: !Ref CredentialsSecret
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -413,9 +346,9 @@ Resources:
     Type: AWS::ECS::Service
     DependsOn:
       - TaskDefinition
-      - Base64CredentialsSecret
       - ApiGatewayStage
       - ConnectServiceDiscovery
+      - FargateContainerSecurityGroup
     Properties:
       ServiceName: connect
       Cluster: !Ref ECSCluster
