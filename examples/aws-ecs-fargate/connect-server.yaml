@@ -27,7 +27,7 @@ Metadata:
       Route53HostedZoneID:
         default: Route 53 Hosted Zone
       DomainName:
-        default: ALB Domain Name
+        default: 1Password Connect Server domain name
       CredentialsJson:
         default: 1Password Credentials JSON
 
