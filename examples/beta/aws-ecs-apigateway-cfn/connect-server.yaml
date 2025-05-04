@@ -77,7 +77,7 @@ Resources:
       EnableDnsSupport: true
       EnableDnsHostnames: true
 
-  PublicSubnetOne: # first subnet for the VPC
+  PublicSubnetOne:
     Condition: CreateVPC
     Type: AWS::EC2::Subnet
     Properties:
@@ -89,7 +89,7 @@ Resources:
       CidrBlock: !FindInMap ['SubnetConfig', 'PublicOne', 'CIDR']
       MapPublicIpOnLaunch: true
 
-  PublicSubnetTwo: # second subnet for the VPC
+  PublicSubnetTwo:
     Condition: CreateVPC
     Type: AWS::EC2::Subnet
     Properties:
@@ -101,7 +101,7 @@ Resources:
       CidrBlock: !FindInMap ['SubnetConfig', 'PublicTwo', 'CIDR']
       MapPublicIpOnLaunch: true
 
-  InternetGateway: # need this for internet access in the new VPC
+  InternetGateway:
     Condition: CreateVPC
     Type: AWS::EC2::InternetGateway
 
@@ -118,7 +118,7 @@ Resources:
     Properties:
       VpcId: !Ref VPC
 
-  PublicRoute: # sets up the route to the internet
+  PublicRoute:
     Condition: CreateVPC
     DependsOn: GatewayAttachment
     Type: AWS::EC2::Route
@@ -183,7 +183,7 @@ Resources:
       ToPort: 8080
       SourceSecurityGroupId: !Ref ApiGatewaySecurityGroup
 
-  ConnectSelfIngress: # lets containers in the same SG talk to each other
+  ConnectSelfIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       Description: Ingress from other containers in the same security group
@@ -191,7 +191,7 @@ Resources:
       IpProtocol: -1
       SourceSecurityGroupId: !Ref FargateContainerSecurityGroup
 
-  ConnectPublicEgress: # Fargate needs internet to grab images
+  ConnectPublicEgress:
     Type: AWS::EC2::SecurityGroupEgress
     Properties:
       GroupId: !Ref FargateContainerSecurityGroup
