@@ -1,0 +1,463 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Sets up 1Password Connect on Fargate with an ALB for HTTPS ingress, in a public VPC subnet.
+  Note: If you leave Route53HostedZoneID blank, deployment will pause at HTTPSCertificate creation.
+  Check the ACM console for a CNAME record to add to your DNS registrar for validation, then wait for the certificate to be issued.
+
+# Makes the params look nice in the AWS console
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Network & Credentials Setup
+        Parameters:
+          - VPCID
+          - VPCCIDR
+          - PublicSubnets
+          - Route53HostedZoneID
+          - DomainName
+          - CredentialsJson
+    ParameterLabels:
+      VPCID:
+        default: VPC ID
+      VPCCIDR:
+        default: VPC CIDR
+      PublicSubnets:
+        default: Public Subnets
+      Route53HostedZoneID:
+        default: Route 53 Hosted Zone
+      DomainName:
+        default: ALB Domain Name
+      CredentialsJson:
+        default: 1Password Credentials JSON
+
+# Stuff you can tweak when you deploy
+Parameters:
+  VPCID:
+    Type: String
+    Description: Got a VPC ID? Toss it here, or leave it blank to make a new one
+    Default: ""
+  VPCCIDR:
+    Type: String
+    Description: CIDR for a new VPC if we're making one
+    Default: 10.0.0.0/16
+  PublicSubnets:
+    Type: CommaDelimitedList
+    Description: List of public subnet IDs, need at least 2 if you're using an existing VPC
+    Default: ""
+  Route53HostedZoneID:
+    Type: String
+    Description: Route 53 hosted zone ID for creating DNS records (leave empty to set up manually)
+    Default: ""
+  DomainName:
+    Type: String
+    Description: Domain name for the ALB (e.g., connect.example.com), must be in Route 53 if hosted zone is provided
+    MinLength: 1
+    ConstraintDescription: Need to provide a domain name for HTTPS
+  CredentialsJson:
+    Type: String
+    Description: Your 1password-credentials.json as plain JSON
+    NoEcho: true
+    MinLength: 1
+    ConstraintDescription: gotta have something here
+
+# Check if we need to whip up a new VPC or create DNS records
+Conditions:
+  CreateVPC: !Equals [!Ref VPCID, ""]
+  CreateRoute53Records: !Not [!Equals [!Ref Route53HostedZoneID, ""]]
+  OutputDNSRecordContent: !Not [Condition: CreateRoute53Records]
+
+# Predefined CIDRs for the VPC and subnets
+Mappings:
+  SubnetConfig:
+    VPC:
+      CIDR: '10.0.0.0/16'
+    PublicOne:
+      CIDR: '10.0.1.0/24'
+    PublicTwo:
+      CIDR: '10.0.2.0/24'
+
+Resources:
+  # Secret to store the base64-encoded credentials
+  CredentialsSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub 'CredentialsSecret-${AWS::StackName}'
+      SecretString: !Base64 { "Fn::Sub": "${CredentialsJson}" }
+
+  # VPC stuff if we need to make one
+  VPC:
+    Condition: CreateVPC
+    Type: AWS::EC2::VPC
+    Properties:
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      CidrBlock: !Ref VPCCIDR
+  PublicSubnetOne: # first subnet for the VPC
+    Condition: CreateVPC
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap ['SubnetConfig', 'PublicOne', 'CIDR']
+      MapPublicIpOnLaunch: true
+  PublicSubnetTwo: # second subnet for the VPC
+    Condition: CreateVPC
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap ['SubnetConfig', 'PublicTwo', 'CIDR']
+      MapPublicIpOnLaunch: true
+  InternetGateway: # need this for internet access in the new VPC
+    Condition: CreateVPC
+    Type: AWS::EC2::InternetGateway
+  GatewayAttachement:
+    Condition: CreateVPC
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+  PublicRouteTable:
+    Condition: CreateVPC
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+  PublicRoute: # sets up the route to the internet
+    Condition: CreateVPC
+    DependsOn: GatewayAttachement
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+  PublicSubnetOneRouteTableAssociation:
+    Condition: CreateVPC
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetOne
+      RouteTableId: !Ref PublicRouteTable
+  PublicSubnetTwoRouteTableAssociation:
+    Condition: CreateVPC
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetTwo
+      RouteTableId: !Ref PublicRouteTable
+
+  # ECS cluster to run stuff
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+
+  # SGs for Fargate and ALB
+  LoadBalancerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Access to the public facing load balancer
+      VpcId: !If [CreateVPC, !Ref VPC, !Ref VPCID]
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS from anywhere
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: !If
+            - CreateVPC
+            - !GetAtt VPC.CidrBlock
+            - 0.0.0.0/0
+  FargateContainerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Access to the Fargate containers
+      VpcId: !If [CreateVPC, !Ref VPC, !Ref VPCID]
+  EcsSecurityGroupIngressFromPublicALB:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Ingress from the public ALB
+      GroupId: !Ref FargateContainerSecurityGroup
+      IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      SourceSecurityGroupId: !Ref LoadBalancerSG
+  EcsSecurityGroupIngressFromSelf:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Ingress for sync container communication
+      GroupId: !Ref FargateContainerSecurityGroup
+      IpProtocol: tcp
+      FromPort: 8081
+      ToPort: 8081
+      SourceSecurityGroupId: !Ref FargateContainerSecurityGroup
+  EcsSecurityGroupEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref FargateContainerSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: 0.0.0.0/0
+      Description: HTTPS to external services (e.g., Docker Hub)
+
+  # ALB setup
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: internet-facing
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: '30'
+      Subnets: !If
+        - CreateVPC
+        - [!Ref PublicSubnetOne, !Ref PublicSubnetTwo]
+        - !Ref PublicSubnets
+      SecurityGroups: [!Ref LoadBalancerSG]
+
+  HTTPSCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      ValidationMethod: DNS
+      DomainValidationOptions: !If
+        - CreateRoute53Records
+        - - DomainName: !Ref DomainName
+            HostedZoneId: !Ref Route53HostedZoneID
+        - !Ref AWS::NoValue
+
+  HTTPSListener:
+    DependsOn:
+      - LoadBalancer
+      - HTTPSCertificate
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref ConnectTargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      SslPolicy: ELBSecurityPolicy-TLS13-1-2-Res-2021-06
+      Certificates:
+        - CertificateArn: !Ref HTTPSCertificate
+
+  ConnectTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn:
+      - LoadBalancer
+    Properties:
+      HealthCheckIntervalSeconds: 6
+      HealthCheckPath: /heartbeat
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      TargetType: ip
+      Name: connect
+      Port: 8080
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId: !If [CreateVPC, !Ref VPC, !Ref VPCID]
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 60
+
+  # DNS record for the ALB (if using Route 53)
+  DNSRecord:
+    Condition: CreateRoute53Records
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref Route53HostedZoneID
+      Comment: DNS record pointing to load balancer for 1Password Connect
+      Name: !Ref DomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt LoadBalancer.DNSName
+        HostedZoneId: !GetAtt LoadBalancer.CanonicalHostedZoneID
+
+  # Service discovery for internal routing
+  ServiceDiscoveryNamespace:
+    Type: AWS::ServiceDiscovery::PrivateDnsNamespace
+    Properties:
+      Description: Private DNS namespace for 1Password Connect
+      Vpc: !If [CreateVPC, !Ref VPC, !Ref VPCID]
+      Name: onepassword
+
+  ConnectServiceDiscovery:
+    Type: AWS::ServiceDiscovery::Service
+    DependsOn:
+      - ServiceDiscoveryNamespace
+    Properties:
+      DnsConfig:
+        DnsRecords:
+          - TTL: 60
+            Type: SRV
+      Name: connect
+      NamespaceId: !Ref ServiceDiscoveryNamespace
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+
+  # IAM roles for ECS
+  ECSRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ECSFargatePermissions
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:AttachNetworkInterface
+                  - ec2:CreateNetworkInterface
+                  - ec2:DeleteNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DetachNetworkInterface
+                  - elasticloadbalancing:RegisterTargets
+                  - elasticloadbalancing:DeregisterTargets
+                  - elasticloadbalancing:DescribeTargetHealth
+                Resource: '*'
+
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AmazonECSTaskExecutionRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+        - PolicyName: SecretAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:CredentialsSecret-${AWS::StackName}*'
+
+  # Logs in CloudWatch
+  CloudWatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: onepassword-connect
+      RetentionInDays: 30
+
+  # Task def for the Connect containers
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    DependsOn:
+      - ECSTaskExecutionRole
+      - CloudWatchLogsGroup
+    Properties:
+      Cpu: 256
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !Ref ECSTaskExecutionRole
+      TaskRoleArn: !Ref ECSRole
+      Volumes:
+        - Name: connect-data
+      ContainerDefinitions:
+        - Name: connect-api
+          Image: 1password/connect-api:latest
+          PortMappings:
+            - ContainerPort: 8080
+              Protocol: tcp
+          MountPoints:
+            - ContainerPath: /home/opuser/.op/data
+              SourceVolume: connect-data
+          Secrets:
+            - Name: OP_SESSION
+              ValueFrom: !Ref CredentialsSecret
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref CloudWatchLogsGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: connect-api
+        - Name: connect-sync
+          Image: 1password/connect-sync:latest
+          MountPoints:
+            - ContainerPath: /home/opuser/.op/data
+              SourceVolume: connect-data
+          Environment:
+            - Name: OP_HTTP_PORT
+              Value: '8081'
+          Secrets:
+            - Name: OP_SESSION
+              ValueFrom: !Ref CredentialsSecret
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref CloudWatchLogsGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: connect-sync
+
+  # ECS service to run the containers
+  ConnectService:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - LoadBalancer
+      - HTTPSListener
+    Properties:
+      ServiceName: connect
+      Cluster: !Ref ECSCluster
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref FargateContainerSecurityGroup
+          Subnets: !If
+            - CreateVPC
+            - [!Ref PublicSubnetOne, !Ref PublicSubnetTwo]
+            - !Ref PublicSubnets
+      TaskDefinition: !Ref TaskDefinition
+      LoadBalancers:
+        - ContainerName: connect-api
+          ContainerPort: 8080
+          TargetGroupArn: !Ref ConnectTargetGroup
+      ServiceRegistries:
+        - ContainerName: connect-api
+          ContainerPort: 8080
+          RegistryArn: !GetAtt ConnectServiceDiscovery.Arn
+
+# Stuff you'll need after deployment
+Outputs:
+  CNAMEName:
+    Condition: OutputDNSRecordContent
+    Description: Name of a DNS record to point to the load balancer (use with CNAME Value for manual setup)
+    Value: !Sub ${DomainName}.
+  CNAMEValue:
+    Condition: OutputDNSRecordContent
+    Description: Value of a DNS record to point to the load balancer (use with CNAME Name for manual setup)
+    Value: !Sub ${LoadBalancer.DNSName}.
+  ExternalUrl:
+    Description: The URL of the external load balancer
+    Value: !Join ['', ['https://', !GetAtt LoadBalancer.DNSName]]
+    Export:
+      Name: !Join [':', [!Ref AWS::StackName, 'ExternalUrl']]
