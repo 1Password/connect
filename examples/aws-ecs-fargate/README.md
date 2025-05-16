@@ -8,11 +8,11 @@ To customize further, like deploying into an existing ECS cluster, use this Clou
 
 ## Networking Resources
 
+- An ACM certificate for HTTPS
+- An ALB (Application Load Balancer) with HTTPS
 - A VPC (optional, if you don’t provide your own)
 - 2 Public subnets (optional, if you don’t provide your own)
 - An Internet Gateway (optional, if creating a VPC)
-- An ALB (Application Load Balancer) with HTTPS
-- An ACM certificate for HTTPS
 - Route 53 DNS records (optional, if you provide a hosted zone ID)
 
 ## ECS Resources
