@@ -22,7 +22,7 @@ Metadata:
       PublicSubnets:
         default: Public Subnets
 
-# Stuff you can tweak when you deploy
+# Parameters you can tweak when you deploy
 Parameters:
   VPCID:
     Type: String
@@ -432,3 +432,4 @@ Outputs:
     Value: !GetAtt ApiGateway.ApiEndpoint
     Export:
       Name: !Join [ ':', [ !Ref AWS::StackName, 'ExternalUrl' ] ]
+      

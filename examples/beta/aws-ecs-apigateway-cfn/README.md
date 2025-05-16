@@ -8,11 +8,12 @@ To customize further, like deploying into an existing ECS cluster, use this Clou
 
 ## Networking Resources
 
+- A VPC Link for API Gateway to route to the Fargate service
+- An API Gateway with HTTPS
 - A VPC (optional, if you don’t provide your own)
 - 2 Public subnets (optional, if you don’t provide your own)
 - An Internet Gateway (optional, if creating a VPC)
-- An API Gateway with HTTPS
-- A VPC Link for API Gateway to route to the Fargate service
+
 
 ## ECS Resources
 
