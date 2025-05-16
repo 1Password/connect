@@ -1,0 +1,435 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Sets up 1Password Connect on Fargate with API Gateway, stores 1password-credentials.json in Secrets Manager, and makes a VPC if you don’t give one
+
+# Makes the params look nice in the AWS console
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Network & Credentials Setup
+        Parameters:
+          - VPCID
+          - VPCCIDR
+          - PublicSubnets
+          - CredentialsJson
+    ParameterLabels:
+      CredentialsJson:
+        default: 1Password Credentials JSON
+      VPCID:
+        default: VPC ID
+      VPCCIDR:
+        default: VPC CIDR
+      PublicSubnets:
+        default: Public Subnets
+
+# Parameters you can tweak when you deploy
+Parameters:
+  VPCID:
+    Type: String
+    Description: Got a VPC ID? Toss it here, or leave it blank to make a new one
+    Default: ""
+  VPCCIDR:
+    Type: String
+    Description: CIDR for a new VPC if we're making one
+    Default: 10.0.0.0/16
+  PublicSubnets:
+    Type: CommaDelimitedList
+    Description: List of public subnet IDs, need at least 2 if you're using an existing VPC
+    Default: ""
+  CredentialsJson:
+    Type: String
+    Description: Your 1password-credentials.json as plain JSON
+    NoEcho: true
+    MinLength: 1
+    ConstraintDescription: gotta have something here
+
+# Check if we need to whip up a new VPC
+Conditions:
+  CreateVPC:
+    Fn::Equals:
+      - !Ref VPCID
+      - ""
+
+# Predefined CIDRs for the VPC and subnets
+Mappings:
+  SubnetConfig:
+    VPC:
+      CIDR: '10.0.0.0/16'
+    PublicOne:
+      CIDR: '10.0.1.0/24'
+    PublicTwo:
+      CIDR: '10.0.2.0/24'
+
+Resources:
+  # Secret to store the base64-encoded credentials
+  CredentialsSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub 'CredentialsSecret-${AWS::StackName}'
+      SecretString: !Base64 { "Fn::Sub": "${CredentialsJson}" }
+
+  # VPC stuff if we need to make one
+  VPC:
+    Condition: CreateVPC
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+
+  PublicSubnetOne:
+    Condition: CreateVPC
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ''
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap ['SubnetConfig', 'PublicOne', 'CIDR']
+      MapPublicIpOnLaunch: true
+
+  PublicSubnetTwo:
+    Condition: CreateVPC
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ''
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap ['SubnetConfig', 'PublicTwo', 'CIDR']
+      MapPublicIpOnLaunch: true
+
+  InternetGateway:
+    Condition: CreateVPC
+    Type: AWS::EC2::InternetGateway
+
+  GatewayAttachment:
+    Condition: CreateVPC
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Condition: CreateVPC
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PublicRoute:
+    Condition: CreateVPC
+    DependsOn: GatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetOneRouteTableAssociation:
+    Condition: CreateVPC
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetOne
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetTwoRouteTableAssociation:
+    Condition: CreateVPC
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetTwo
+      RouteTableId: !Ref PublicRouteTable
+
+  # ECS cluster to run stuff
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      CapacityProviders:
+        - FARGATE
+      DefaultCapacityProviderStrategy:
+        - CapacityProvider: FARGATE
+          Weight: 1
+
+  # SGs for Fargate and API Gateway
+  FargateContainerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Access to the Fargate containers
+      VpcId: !If [CreateVPC, !Ref VPC, !Ref VPCID]
+
+  ApiGatewaySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: API Gateway traffic for 1Password Connect
+      VpcId: !If [CreateVPC, !Ref VPC, !Ref VPCID]
+
+  # Security group rules
+  ApiGatewayEgress: # lets API Gateway talk to Fargate
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref ApiGatewaySecurityGroup
+      IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      DestinationSecurityGroupId: !Ref FargateContainerSecurityGroup
+
+  ConnectIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref FargateContainerSecurityGroup
+      IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      SourceSecurityGroupId: !Ref ApiGatewaySecurityGroup
+
+  ConnectSelfIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Ingress from other containers in the same security group
+      GroupId: !Ref FargateContainerSecurityGroup
+      IpProtocol: -1
+      SourceSecurityGroupId: !Ref FargateContainerSecurityGroup
+
+  ConnectPublicEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref FargateContainerSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: 0.0.0.0/0
+      Description: HTTPS to external services (e.g., Docker Hub)
+
+  # IAM roles for ECS
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AmazonECSTaskExecutionRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+        - PolicyName: SecretAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:CredentialsSecret-${AWS::StackName}*'
+
+  ECSRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ECSPermissions
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:AttachNetworkInterface
+                  - ec2:CreateNetworkInterface
+                  - ec2:DeleteNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DetachNetworkInterface
+                Resource: '*'
+
+  # Logs in CloudWatch
+  CloudWatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: onepassword-connect
+      RetentionInDays: 30
+
+  # Service discovery for internal routing
+  ServiceDiscoveryNamespace:
+    Type: AWS::ServiceDiscovery::PrivateDnsNamespace
+    Properties:
+      Description: Private DNS namespace for 1Password Connect
+      Vpc: !If [CreateVPC, !Ref VPC, !Ref VPCID]
+      Name: onepassword
+
+  ConnectServiceDiscovery:
+    Type: AWS::ServiceDiscovery::Service
+    DependsOn:
+      - ServiceDiscoveryNamespace
+    Properties:
+      DnsConfig:
+        DnsRecords:
+          - TTL: 60
+            Type: SRV
+      Name: connect
+      NamespaceId: !Ref ServiceDiscoveryNamespace
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+
+  # Task def for the Connect containers
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    DependsOn:
+      - ECSTaskExecutionRole
+      - CredentialsSecret
+      - CloudWatchLogsGroup
+    Properties:
+      Cpu: 256
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !Ref ECSTaskExecutionRole
+      TaskRoleArn: !Ref ECSRole
+      Volumes:
+        - Name: data
+      ContainerDefinitions:
+        - Name: connect-api
+          Image: 1password/connect-api:latest
+          PortMappings:
+            - ContainerPort: 8080
+              Protocol: tcp
+          MountPoints:
+            - ContainerPath: /home/opuser/.op/data
+              SourceVolume: data
+          Secrets:
+            - Name: OP_SESSION
+              ValueFrom: !Ref CredentialsSecret
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref CloudWatchLogsGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: connect-api
+        - Name: connect-sync
+          Image: 1password/connect-sync:latest
+          MountPoints:
+            - ContainerPath: /home/opuser/.op/data
+              SourceVolume: data
+          Environment:
+            - Name: OP_HTTP_PORT
+              Value: '8081'
+          Secrets:
+            - Name: OP_SESSION
+              ValueFrom: !Ref CredentialsSecret
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref CloudWatchLogsGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: connect-sync
+
+  # ECS service to run the containers
+  ConnectService:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - TaskDefinition
+      - ApiGatewayStage
+      - ConnectServiceDiscovery
+      - FargateContainerSecurityGroup
+    Properties:
+      ServiceName: connect
+      Cluster: !Ref ECSCluster
+      LaunchType: FARGATE
+      DesiredCount: 1
+      TaskDefinition: !Ref TaskDefinition
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref FargateContainerSecurityGroup
+          Subnets: !If
+            - CreateVPC
+            - [!Ref PublicSubnetOne, !Ref PublicSubnetTwo]
+            - !Ref PublicSubnets
+      ServiceRegistries:
+        - ContainerName: connect-api
+          ContainerPort: 8080
+          RegistryArn: !GetAtt ConnectServiceDiscovery.Arn
+
+  # API Gateway setup
+  VpcLink:
+    Type: AWS::ApiGatewayV2::VpcLink
+    Properties:
+      Name: connect-vpc-link
+      SecurityGroupIds:
+        - !Ref ApiGatewaySecurityGroup
+      SubnetIds: !If
+        - CreateVPC
+        - [!Ref PublicSubnetOne, !Ref PublicSubnetTwo]
+        - !Ref PublicSubnets
+
+  ApiGateway:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: onepassword-connect
+      ProtocolType: HTTP
+      Description: API Gateway for 1Password Connect
+
+  ApiGatewayIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    DependsOn:
+      - ApiGateway
+      - VpcLink
+    Properties:
+      ApiId: !Ref ApiGateway
+      IntegrationType: HTTP_PROXY
+      IntegrationMethod: ANY
+      ConnectionType: VPC_LINK
+      ConnectionId: !Ref VpcLink
+      IntegrationUri: !GetAtt ConnectServiceDiscovery.Arn
+      PayloadFormatVersion: 1.0
+
+  ApiGatewayRoute:
+    Type: AWS::ApiGatewayV2::Route
+    DependsOn:
+      - ApiGateway
+      - ApiGatewayIntegration
+    Properties:
+      ApiId: !Ref ApiGateway
+      RouteKey: $default
+      AuthorizationType: NONE
+      Target: !Join
+        - /
+        - - integrations
+          - !Ref ApiGatewayIntegration
+
+  ApiGatewayStage:
+    Type: AWS::ApiGatewayV2::Stage
+    DependsOn:
+      - ApiGateway
+      - ApiGatewayRoute
+    Properties:
+      StageName: $default
+      ApiId: !Ref ApiGateway
+      AutoDeploy: true
+
+Outputs:
+  ExternalUrl:
+    Description: The URL of the API Gateway for 1Password Connect
+    Value: !GetAtt ApiGateway.ApiEndpoint
+    Export:
+      Name: !Join [ ':', [ !Ref AWS::StackName, 'ExternalUrl' ] ]
+      
