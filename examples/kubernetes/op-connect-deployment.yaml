@@ -30,7 +30,7 @@ spec:
               name: shared-data
       containers:
         - name: connect-api
-          image: 1password/connect-api:1.5.7
+          image: 1password/connect-api:latest
           resources:
             limits:
               memory: "128Mi"
@@ -60,7 +60,7 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
         - name: connect-sync
-          image: 1password/connect-sync:1.5.7
+          image: 1password/connect-sync:latest
           resources:
             limits:
               memory: "128Mi"
