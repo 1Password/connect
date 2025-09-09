@@ -19,7 +19,7 @@ The following environment variable configuration options are available for both 
 - `OP_BUS_PORT`: the port used for listening to incoming bus connections from other containers (by default, this is a random free port)
 - `OP_BUS_PEERS`: a comma-separated listed of `[hostname]:[bus port]` pairs of other containers to connect to (see _Manual bus configuration_ for more details)
 
-All other configuration options are only relevant for the `password/connect-api` container:
+All other configuration options are only relevant for the `1password/connect-api` container:
 
 - `OP_HTTPS_PORT`: port used by the HTTP sever when TLS is configured (see below)
 - `OP_SYNC_TIMEOUT`: define how long to wait for initial sync to complete

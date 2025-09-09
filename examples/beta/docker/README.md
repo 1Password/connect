@@ -183,8 +183,8 @@ Update the `op-connect_api` and `op-connect_sync` services with the new image ta
 - https://hub.docker.com/r/1password/connect-sync/tags
 
 ```sh
-docker service update op-connect_api --image 1password/connect-api:1.7.3 && \
-   docker service update op-connect_sync --image 1password/connect-sync:1.7.3
+docker service update op-connect_api --image 1password/connect-api:latest && \
+   docker service update op-connect_sync --image 1password/connect-sync:latest
 
 ```
 
