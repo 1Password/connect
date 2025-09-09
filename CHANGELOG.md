@@ -1,3 +1,13 @@
+[//]: # "START/v1.8.0"
+
+# v1.8.0
+This release includes improvements for fetching files with Connect, like support for fetching a file referenced in multiple items and a better error response if a file is not synced yet.
+
+- [IMPROVED] Connect now returns an improved error response when you try to fetch a file that isn't synced in your Connect server's local storage. {4378}
+
+- [FIXED] Connect now allows you to fetch a file if the file is referenced in multiple items across different vaults. {4262}
+- [FIXED] Connect file storage management can now handle multiple items referencing the same file. {4263}
+
 [//]: # "START/v1.7.3"
 
 # v1.7.3
@@ -125,7 +135,7 @@ This release addresses a few problems related to Connect's synchronization mecha
 [//]: # "START/v1.5.0"
 
 # v1.5.0
-This release introduces Docker images for the `arm64` and `arm/v7` platforms. 
+This release introduces Docker images for the `arm64` and `arm/v7` platforms.
 
 Furthermore, the bus between the api and sync container can now be manually configured for environments that cannot run containers with the `NET_BROADCAST` capability.
 
