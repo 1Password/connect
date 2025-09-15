@@ -10,6 +10,8 @@ services:
       - "data:/home/opuser/.op/data"
   op-connect-sync:
     image: 1password/connect-sync:latest
+    ports:
+      - "8081:8080"
     volumes:
       - "./1password-credentials.json:/home/opuser/.op/1password-credentials.json"
       - "data:/home/opuser/.op/data"
