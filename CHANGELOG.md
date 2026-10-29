@@ -1,3 +1,37 @@
+[//]: # "START/v1.8.4"
+
+# v1.8.4
+This release updates Go and the Connect base image to pull in the latest security fixes, and fixes connect-api failing on its first request to a new server.
+
+- [FIXED] Fixed connect-api failing or crashing on the first request to a fresh server before connect-sync has stored any keysets. It now retries instead of failing.
+
+- [SECURITY] Updated the Connect base image on linux/amd64 and linux/arm64 to the latest hardened build to pull in security fixes.
+- [SECURITY] Updated Go to 1.26.10 to pull in the latest security fixes.
+
+[//]: # "START/v1.8.3"
+
+# v1.8.3
+This release updates the Connect base image, the Go runtime, and Go dependencies to resolve critical and high-severity security vulnerabilities, and adds TLS support for post-quantum key exchange.
+
+- [SECURITY] Updated the Connect base image to Chainguard glibc-dynamic on linux/amd64 and linux/arm64 to resolve OS-level vulnerabilities. {4645}
+- [SECURITY] Updated Go to 1.26.8 and golang.org/x/crypto, x/net, and x/text to versions that fix CVE-2026-78662, CVE-2026-56855, CVE-2026-56854, and CVE-2026-46600. {4646}
+- [SECURITY] Added TLS support for post-quantum key exchange. {4481}
+
+[//]: # "START/v1.8.2"
+
+# v1.8.2
+This release updates the Go runtime and base container image to resolve security vulnerabilities.
+
+- [SECURITY] Upgrade Go to 1.25.7 to resolve vulnerabilities.
+- [SECURITY] Update Connect base image to resolve vulnerabilities.
+
+[//]: # "START/v1.8.1"
+
+# v1.8.1
+This release fixes a race condition that could occur when multiple `connect-sync` service instances tried to sync the same file.
+
+- [FIXED] Connect now prevents concurrent sync of the same file across `connect-sync` instances. {4390}
+
 [//]: # "START/v1.8.0"
 
 # v1.8.0
