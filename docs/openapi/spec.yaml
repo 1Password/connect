@@ -257,10 +257,11 @@ components:
             - "EMAIL"
             - "CONCEALED"
             - "URL"
-            - "TOTP"
+            - "OTP"
             - "DATE"
             - "MONTH_YEAR"
             - "MENU"
+            - "SSHKEY"
         purpose:
           description: Some item types, Login and Password, have fields used for autofill. This property indicates that purpose and is required for some item types.
           type: string
@@ -944,14 +945,14 @@ paths:
           name: vaultUuid
           schema:
             type: string
-            format: uuid
+            pattern: '^[\da-z]{26}$'
           required: true
           description: The UUID of the Vault to fetch Items from
         - in: path
           name: itemUuid
           schema:
             type: string
-            format: uuid
+            pattern: '^[\da-z]{26}$'
           required: true
           description: The UUID of the Item to fetch files from
         - in: query
@@ -1020,21 +1021,21 @@ paths:
           name: vaultUuid
           schema:
             type: string
-            format: uuid
+            pattern: '^[\da-z]{26}$'
           required: true
           description: The UUID of the Vault to fetch Item from
         - in: path
           name: itemUuid
           schema:
             type: string
-            format: uuid
+            pattern: '^[\da-z]{26}$'
           required: true
           description: The UUID of the Item to fetch File from
         - in: path
           name: fileUuid
           schema:
             type: string
-            format: uuid
+            pattern: '^[\da-z]{26}$'
           required: true
           description: The UUID of the File to fetch
         - in: query
@@ -1108,21 +1109,22 @@ paths:
         name: vaultUuid
         schema:
           type: string
-          format: uuid
+          pattern: '^[\da-z]{26}$'
         required: true
         description: The UUID of the Vault the item is in
       - in: path
         name: itemUuid
         schema:
           type: string
-          format: uuid
+          pattern: '^[\da-z]{26}$'
         required: true
         description: The UUID of the Item the File is in
       - in: path
         name: fileUuid
-        required: true
         schema:
           type: string
+          pattern: '^[\da-z]{26}$'
+        required: true
         description: UUID of the file to get content from
     get:
       operationId: DownloadFileByID
